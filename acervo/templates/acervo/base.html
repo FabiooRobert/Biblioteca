@@ -1,0 +1,26 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Biblioteca{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'acervo/estilo.css' %}">
+</head>
+<body>
+<header>
+    <h1>Biblioteca</h1>
+    <nav>
+        <a href="{% url 'lista' %}">Livros</a>
+        <a href="{% url 'novo' %}">Cadastrar livro</a>
+        <a href="/admin/" class="admin-link">Admin</a>
+    </nav>
+</header>
+
+<main>
+    {% block conteudo %}{% endblock %}
+</main>
+
+<footer>© 2026 - Projeto Django</footer>
+</body>
+</html>

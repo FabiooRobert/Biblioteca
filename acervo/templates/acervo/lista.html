@@ -1,0 +1,42 @@
+{% extends "acervo/base.html" %}
+
+{% block title %}Acervo{% endblock %}
+
+{% block conteudo %}
+<h2>Acervo de livros</h2>
+
+{% if livros %}
+<table>
+    <thead>
+        <tr>
+            <th>Título</th>
+            <th>Autor</th>
+            <th>Ano</th>
+            <th>Disponível</th>
+            <th>Ações</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for livro in livros %}
+        <tr>
+            <td>{{ livro.titulo }}</td>
+            <td>{{ livro.autor }}</td>
+            <td>{{ livro.ano }}</td>
+            <td>{% if livro.disponivel %}Sim{% else %}Não{% endif %}</td>
+            <td>
+                <a href="{% url 'editar' livro.pk %}">Editar</a>
+                <form method="post" action="{% url 'excluir' livro.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" onclick="return confirm('Deseja excluir este livro?')">Excluir</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Nenhum livro cadastrado.</p>
+{% endif %}
+
+<a class="botao" href="{% url 'novo' %}">+ Novo livro</a>
+{% endblock %}
