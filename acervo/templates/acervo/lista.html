@@ -1,0 +1,154 @@
+{% extends "acervo/base.html" %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block conteudo %}
+<h2>{{ titulo }}</h2>
+
+{% if titulo == "Acervo de livros" or titulo == "Livros" %}
+    <a class="botao" href="{% url 'novo_livro' %}">+ Novo livro</a>
+{% elif titulo == "Autores" %}
+    <a class="botao" href="{% url 'novo_autor' %}">+ Novo autor</a>
+{% elif titulo == "Exemplares" %}
+    <a class="botao" href="{% url 'novo_exemplar' %}">+ Novo exemplar</a>
+{% elif titulo == "Membros" %}
+    <a class="botao" href="{% url 'novo_membro' %}">+ Novo membro</a>
+{% elif titulo == "Empréstimos" %}
+    <a class="botao" href="{% url 'novo_emprestimo' %}">+ Novo empréstimo</a>
+{% elif titulo == "Reservas" %}
+    <a class="botao" href="{% url 'nova_reserva' %}">+ Nova reserva</a>
+{% endif %}
+
+{% if itens %}
+<table>
+    <thead>
+        <tr>
+            {% if titulo == "Acervo de livros" or titulo == "Livros" %}
+                <th>Título</th>
+                <th>Autor</th>
+                <th>Ano</th>
+                <th>ISBN</th>
+                <th>Ações</th>
+            {% elif titulo == "Autores" %}
+                <th>Nome</th>
+                <th>Sobrenome</th>
+                <th>Ações</th>
+            {% elif titulo == "Exemplares" %}
+                <th>Código</th>
+                <th>Livro</th>
+                <th>Status</th>
+                <th>Ações</th>
+            {% elif titulo == "Membros" %}
+                <th>Nome</th>
+                <th>CPF</th>
+                <th>Email</th>
+                <th>Ações</th>
+            {% elif titulo == "Empréstimos" %}
+                <th>Exemplar</th>
+                <th>Membro</th>
+                <th>Data prevista</th>
+                <th>Status</th>
+                <th>Multa</th>
+                <th>Ações</th>
+            {% elif titulo == "Reservas" %}
+                <th>Livro</th>
+                <th>Membro</th>
+                <th>Data reserva</th>
+                <th>Posição</th>
+                <th>Status</th>
+                <th>Ações</th>
+            {% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in itens %}
+            {% if titulo == "Acervo de livros" or titulo == "Livros" %}
+                <tr>
+                    <td>{{ item.titulo }}</td>
+                    <td>{{ item.autor }}</td>
+                    <td>{{ item.ano }}</td>
+                    <td>{{ item.isbn|default:"-" }}</td>
+                    <td>
+                        <a href="{% url 'editar_livro' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_livro' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este livro?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Autores" %}
+                <tr>
+                    <td>{{ item.nome }}</td>
+                    <td>{{ item.sobrenome }}</td>
+                    <td>
+                        <a href="{% url 'editar_autor' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_autor' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este autor?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Exemplares" %}
+                <tr>
+                    <td>{{ item.codigo }}</td>
+                    <td>{{ item.livro }}</td>
+                    <td>{{ item.get_status_display }}</td>
+                    <td>
+                        <a href="{% url 'editar_exemplar' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_exemplar' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este exemplar?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Membros" %}
+                <tr>
+                    <td>{{ item.nome }} {{ item.sobrenome }}</td>
+                    <td>{{ item.cpf }}</td>
+                    <td>{{ item.email }}</td>
+                    <td>
+                        <a href="{% url 'editar_membro' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_membro' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este membro?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Empréstimos" %}
+                <tr>
+                    <td>{{ item.exemplar }}</td>
+                    <td>{{ item.membro }}</td>
+                    <td>{{ item.data_devolucao_prevista }}</td>
+                    <td>{{ item.get_status_display }}</td>
+                    <td>R$ {{ item.calcular_multa }}</td>
+                    <td>
+                        <a href="{% url 'editar_emprestimo' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_emprestimo' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este empréstimo?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Reservas" %}
+                <tr>
+                    <td>{{ item.livro }}</td>
+                    <td>{{ item.membro }}</td>
+                    <td>{{ item.data_reserva }}</td>
+                    <td>{{ item.posicao_na_fila }}</td>
+                    <td>{{ item.get_status_display }}</td>
+                    <td>
+                        <a href="{% url 'editar_reserva' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_reserva' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir esta reserva?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% endif %}
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p>Nenhum registro encontrado.</p>
+{% endif %}
+{% endblock %}

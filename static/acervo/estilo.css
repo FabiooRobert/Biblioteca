@@ -1,0 +1,146 @@
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(180deg, #f3efe7 0%, #efe6d8 100%);
+    color: #2d2d2d;
+}
+
+header {
+    background: #2e4a3a;
+    color: white;
+    padding: 22px 30px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+}
+
+header h1 {
+    margin: 0 0 12px;
+    font-size: 2rem;
+}
+
+nav {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+nav a {
+    color: white;
+    text-decoration: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.08);
+}
+
+.admin-link {
+    background: #d9b76f;
+    color: #1f2b22;
+    font-weight: 700;
+}
+
+main {
+    max-width: 980px;
+    margin: 30px auto;
+    background: white;
+    padding: 30px;
+    border-radius: 14px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+}
+
+h2 {
+    margin-top: 0;
+    color: #2a3d2f;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+th, td {
+    border: 1px solid #e4dccd;
+    padding: 12px 14px;
+    text-align: left;
+}
+
+th {
+    background: #eef3ee;
+    color: #2a3d2f;
+}
+
+tr:nth-child(even) td {
+    background: #faf8f4;
+}
+
+button, .botao,
+button[type="submit"],
+a[href*="editar"],
+a[href*="novo"] {
+    display: inline-block;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: #446a4d;
+    color: white;
+    text-decoration: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: 0.2s ease;
+}
+
+button:hover, .botao:hover,
+a[href*="editar"]:hover,
+a[href*="novo"]:hover {
+    opacity: 0.92;
+}
+
+button[type="submit"] {
+    margin-top: 10px;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-width: 500px;
+}
+
+input, select {
+    padding: 10px 12px;
+    border: 1px solid #d7d0c5;
+    border-radius: 8px;
+    font-size: 1rem;
+}
+
+label {
+    font-weight: 600;
+    color: #334c3d;
+}
+
+p a {
+    color: #2e4a3a;
+    text-decoration: none;
+    font-weight: 600;
+}
+
+footer {
+    text-align: center;
+    padding: 20px;
+    color: #5d5d5d;
+}
+
+.campo-check {
+    width: 18px;
+    height: 18px;
+}
+
+form[action*="excluir"] {
+    display: inline-block;
+    margin-left: 8px;
+}
+
+form[action*="excluir"] button {
+    background: #9e3f3f;
+}
