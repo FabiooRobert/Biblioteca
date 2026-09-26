@@ -61,6 +61,47 @@ class BibliotecaBusinessRulesTests(TestCase):
             self.assertEqual(emprestimo.dias_atraso(), 5)
             self.assertEqual(emprestimo.calcular_multa(), 10.0)
 
+    def test_novo_emprestimo_registra_retirada_membro_e_indisponibilidade(self):
+        response = self.client.post(
+            reverse("novo_emprestimo"),
+            {
+                "exemplar": self.exemplar.pk,
+                "membro": self.membro.pk,
+                "data_emprestimo": "2026-02-01",
+                "data_devolucao_prevista": "2026-02-08",
+            },
+        )
+
+        self.assertRedirects(response, reverse("lista_emprestimos"))
+        emprestimo = Emprestimo.objects.get()
+        self.assertEqual(emprestimo.membro, self.membro)
+        self.assertEqual(emprestimo.data_emprestimo, date(2026, 2, 1))
+        self.assertEqual(self.exemplar.__class__.objects.get(pk=self.exemplar.pk).status, "emprestado")
+
+    def test_devolucao_atrasada_calcula_multa_e_libera_exemplar(self):
+        emprestimo = Emprestimo.objects.create(
+            exemplar=self.exemplar,
+            membro=self.membro,
+            data_emprestimo=date(2026, 2, 1),
+            data_devolucao_prevista=date(2026, 2, 8),
+        )
+        self.exemplar.status = "emprestado"
+        self.exemplar.save(update_fields=["status"])
+
+        response = self.client.post(
+            reverse("registrar_devolucao", args=[emprestimo.pk]),
+            {"data_devolucao_real": "2026-02-10"},
+            follow=True,
+        )
+
+        emprestimo.refresh_from_db()
+        self.exemplar.refresh_from_db()
+        self.assertEqual(emprestimo.status, "devolvido")
+        self.assertEqual(emprestimo.data_devolucao_real, date(2026, 2, 10))
+        self.assertEqual(emprestimo.calcular_multa(), 4.0)
+        self.assertEqual(self.exemplar.status, "disponivel")
+        self.assertContains(response, "Multa: R$ 4.00")
+
     def test_fila_de_reserva_gera_posicao(self):
         reserva_1 = Reserva.objects.create(
             livro=self.livro,
@@ -75,6 +116,28 @@ class BibliotecaBusinessRulesTests(TestCase):
 
         self.assertEqual(reserva_1.posicao_na_fila(), 1)
         self.assertEqual(reserva_2.posicao_na_fila(), 2)
+
+    def test_nao_permite_reservar_mesmo_livro_na_mesma_data(self):
+        data_reserva = date(2026, 2, 1)
+        Reserva.objects.create(
+            livro=self.livro,
+            membro=self.membro,
+            data_reserva=data_reserva,
+        )
+
+        response = self.client.post(
+            reverse("nova_reserva"),
+            {
+                "livro": self.livro.pk,
+                "membro": self.membro_2.pk,
+                "data_reserva": data_reserva.isoformat(),
+                "status": "ativa",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Este livro já está reservado nessa data.")
+        self.assertEqual(Reserva.objects.count(), 1)
 
     def test_lista_exibe_livros(self):
         response = self.client.get(reverse("lista_livros"))

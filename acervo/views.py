@@ -1,11 +1,13 @@
 from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib import messages
+from django.db import transaction
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import (
     AutorForm,
+    DevolucaoForm,
     EmprestimoForm,
     ExemplarForm,
     LivroForm,
@@ -114,6 +116,35 @@ def novo_emprestimo(request):
 
 def editar_emprestimo(request, pk):
     return _editar_formulario(request, Emprestimo, EmprestimoForm, pk, "Empréstimo", "lista_emprestimos")
+
+
+def registrar_devolucao(request, pk):
+    emprestimo = get_object_or_404(Emprestimo.objects.select_related("exemplar", "membro"), pk=pk)
+    if request.method != "POST":
+        return redirect("lista_emprestimos")
+    if emprestimo.status == "devolvido":
+        messages.error(request, "Este empréstimo já foi devolvido.")
+        return redirect("lista_emprestimos")
+
+    form = DevolucaoForm(request.POST, emprestimo=emprestimo)
+    if not form.is_valid():
+        for erro in form.errors.get("data_devolucao_real", []):
+            messages.error(request, erro)
+        return redirect("lista_emprestimos")
+
+    with transaction.atomic():
+        emprestimo.data_devolucao_real = form.cleaned_data["data_devolucao_real"]
+        emprestimo.status = "devolvido"
+        emprestimo.save(update_fields=["data_devolucao_real", "status"])
+        emprestimo.exemplar.status = "disponivel"
+        emprestimo.exemplar.save(update_fields=["status"])
+
+    multa = emprestimo.calcular_multa()
+    if multa:
+        messages.success(request, f"Devolução registrada para {emprestimo.membro}. Multa: R$ {multa:.2f}.")
+    else:
+        messages.success(request, f"Devolução registrada para {emprestimo.membro}. Sem multa.")
+    return redirect("lista_emprestimos")
 
 
 def excluir_emprestimo(request, pk):

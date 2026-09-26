@@ -28,6 +28,7 @@ urlpatterns = [
     path("emprestimos/", login_required(views.lista_emprestimos), name="lista_emprestimos"),
     path("emprestimos/novo/", login_required(views.novo_emprestimo), name="novo_emprestimo"),
     path("emprestimos/<int:pk>/editar/", login_required(views.editar_emprestimo), name="editar_emprestimo"),
+    path("emprestimos/<int:pk>/devolucao/", login_required(views.registrar_devolucao), name="registrar_devolucao"),
     path("emprestimos/<int:pk>/excluir/", login_required(views.excluir_emprestimo), name="excluir_emprestimo"),
     path("reservas/", login_required(views.lista_reservas), name="lista_reservas"),
     path("reservas/novo/", login_required(views.nova_reserva), name="nova_reserva"),

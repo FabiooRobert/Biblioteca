@@ -46,7 +46,9 @@
             {% elif titulo == "Empréstimos" %}
                 <th>Exemplar</th>
                 <th>Membro</th>
-                <th>Data prevista</th>
+                <th>Data de retirada</th>
+                <th>Entrega prevista</th>
+                <th>Data de entrega</th>
                 <th>Status</th>
                 <th>Multa</th>
                 <th>Ações</th>
@@ -118,10 +120,21 @@
                 <tr>
                     <td>{{ item.exemplar }}</td>
                     <td>{{ item.membro }}</td>
+                    <td>{{ item.data_emprestimo }}</td>
                     <td>{{ item.data_devolucao_prevista }}</td>
+                    <td>{{ item.data_devolucao_real|default:"-" }}</td>
                     <td>{{ item.get_status_display }}</td>
                     <td>R$ {{ item.calcular_multa }}</td>
                     <td>
+                        {% if item.status != "devolvido" %}
+                            <form method="post" action="{% url 'registrar_devolucao' item.pk %}">
+                                {% csrf_token %}
+                                <label>Data de entrega
+                                    <input type="date" name="data_devolucao_real" required>
+                                </label>
+                                <button type="submit">Registrar devolução</button>
+                            </form>
+                        {% endif %}
                         <a href="{% url 'editar_emprestimo' item.pk %}">Editar</a>
                         <form method="post" action="{% url 'excluir_emprestimo' item.pk %}" style="display:inline;">
                             {% csrf_token %}
