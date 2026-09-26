@@ -31,6 +31,16 @@ nav a {
     background: rgba(255,255,255,0.08);
 }
 
+.logout-form {
+    display: inline-flex;
+    margin: 0;
+}
+
+.logout-form button {
+    padding: 8px 12px;
+    background: #9e3f3f;
+}
+
 .admin-link {
     background: #d9b76f;
     color: #1f2b22;
@@ -131,6 +141,24 @@ footer {
     color: #5d5d5d;
 }
 
+.messages {
+    margin: 0 0 20px;
+    padding: 0;
+    list-style: none;
+}
+
+.messages li {
+    padding: 12px 14px;
+    border-left: 4px solid #446a4d;
+    background: #eef3ee;
+}
+
+.messages .error {
+    border-color: #9e3f3f;
+    background: #f8eeee;
+    color: #702d2d;
+}
+
 .campo-check {
     width: 18px;
     height: 18px;
@@ -143,4 +171,12 @@ form[action*="excluir"] {
 
 form[action*="excluir"] button {
     background: #9e3f3f;
+}
+
+.form-errors, .helptext {
+    color: #8a3030;
+}
+
+.helptext {
+    font-size: 0.9rem;
 }

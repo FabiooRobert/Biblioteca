@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class Autor(models.Model):
@@ -64,11 +65,10 @@ class Emprestimo(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="ativo")
 
     def dias_atraso(self):
-        if self.data_devolucao_real and self.data_devolucao_real > self.data_devolucao_prevista:
-            return (self.data_devolucao_real - self.data_devolucao_prevista).days
-        return 0
+        data_final = self.data_devolucao_real or timezone.localdate()
+        return max((data_final - self.data_devolucao_prevista).days, 0)
 
-    def calcular_multa(self, valor_por_dia=2.50):
+    def calcular_multa(self, valor_por_dia=2.00):
         return round(self.dias_atraso() * valor_por_dia, 2)
 
     def __str__(self):

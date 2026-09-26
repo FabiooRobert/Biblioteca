@@ -1,0 +1,13 @@
+{% extends "acervo/base.html" %}
+
+{% block title %}Criar conta{% endblock %}
+
+{% block conteudo %}
+<h2>Criar conta</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Cadastrar e acessar</button>
+</form>
+<p>Já tem conta? <a href="{% url 'login' %}">Entre aqui</a>.</p>
+{% endblock %}

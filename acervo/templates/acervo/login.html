@@ -1,0 +1,14 @@
+{% extends "acervo/base.html" %}
+
+{% block title %}Entrar na biblioteca{% endblock %}
+
+{% block conteudo %}
+<h2>Entrar na biblioteca</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <button type="submit">Entrar</button>
+</form>
+<p>Ainda não tem conta? <a href="{% url 'cadastro' %}">Cadastre-se</a>.</p>
+{% endblock %}

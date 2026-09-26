@@ -1,5 +1,7 @@
 from datetime import date, timedelta
+from unittest.mock import patch
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
@@ -8,6 +10,8 @@ from .models import Autor, Emprestimo, Exemplar, Livro, Membro, Reserva
 
 class BibliotecaBusinessRulesTests(TestCase):
     def setUp(self):
+        self.usuario = get_user_model().objects.create_user(username="leitora", password="senha-forte-123")
+        self.client.force_login(self.usuario)
         self.autor = Autor.objects.create(nome="George", sobrenome="Orwell")
         self.livro = Livro.objects.create(
             titulo="1984",
@@ -43,7 +47,19 @@ class BibliotecaBusinessRulesTests(TestCase):
             status="devolvido",
         )
 
-        self.assertEqual(emprestimo.calcular_multa(), 12.5)
+        self.assertEqual(emprestimo.calcular_multa(), 10.0)
+
+    def test_multa_conta_atraso_de_emprestimo_ainda_aberto(self):
+        emprestimo = Emprestimo.objects.create(
+            exemplar=self.exemplar,
+            membro=self.membro,
+            data_emprestimo=date(2026, 1, 1),
+            data_devolucao_prevista=date(2026, 1, 10),
+        )
+
+        with patch("acervo.models.timezone.localdate", return_value=date(2026, 1, 15)):
+            self.assertEqual(emprestimo.dias_atraso(), 5)
+            self.assertEqual(emprestimo.calcular_multa(), 10.0)
 
     def test_fila_de_reserva_gera_posicao(self):
         reserva_1 = Reserva.objects.create(
@@ -64,6 +80,28 @@ class BibliotecaBusinessRulesTests(TestCase):
         response = self.client.get(reverse("lista_livros"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "1984")
+
+    def test_visitante_e_enviado_para_login(self):
+        self.client.logout()
+        response = self.client.get(reverse("lista_livros"))
+        self.assertRedirects(response, f"{reverse('login')}?next={reverse('lista_livros')}")
+
+    def test_exclusao_de_autor_vinculado_mostra_mensagem(self):
+        response = self.client.post(reverse("excluir_autor", args=[self.autor.pk]), follow=True)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Não foi possível excluir este registro")
+        self.assertTrue(Autor.objects.filter(pk=self.autor.pk).exists())
+
+    def test_cadastro_cria_conta_e_autentica(self):
+        self.client.logout()
+        response = self.client.post(
+            reverse("cadastro"),
+            {"username": "nova_leitora", "password1": "Senha-segura-456", "password2": "Senha-segura-456"},
+        )
+        self.assertRedirects(response, reverse("lista_livros"))
+        self.assertTrue(get_user_model().objects.filter(username="nova_leitora").exists())
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
 
     def test_novo_livro_cria_registro(self):
         response = self.client.post(

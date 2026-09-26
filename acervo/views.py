@@ -1,3 +1,7 @@
+from django.contrib.auth import login
+from django.contrib.auth.forms import UserCreationForm
+from django.contrib import messages
+from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import (
@@ -9,6 +13,22 @@ from .forms import (
     ReservaForm,
 )
 from .models import Autor, Emprestimo, Exemplar, Livro, Membro, Reserva
+
+
+def cadastro(request):
+    if request.user.is_authenticated:
+        return redirect("lista_livros")
+
+    if request.method == "POST":
+        form = UserCreationForm(request.POST)
+        if form.is_valid():
+            usuario = form.save()
+            login(request, usuario)
+            return redirect("lista_livros")
+    else:
+        form = UserCreationForm()
+
+    return render(request, "acervo/cadastro.html", {"form": form})
 
 
 def inicio(request):
@@ -146,5 +166,14 @@ def _editar_formulario(request, model_class, form_class, pk, nome_entidade, nome
 def _excluir_registro(request, model_class, pk, nome_lista):
     registro = get_object_or_404(model_class, pk=pk)
     if request.method == "POST":
-        registro.delete()
+        try:
+            registro.delete()
+        except ProtectedError:
+            messages.error(
+                request,
+                "Não foi possível excluir este registro porque ele está vinculado a outros dados. "
+                "Remova ou altere os vínculos antes de tentar novamente.",
+            )
+        else:
+            messages.success(request, "Registro excluído com sucesso.")
     return redirect(nome_lista)
