@@ -15,9 +15,11 @@ class BibliotecaBusinessRulesTests(TestCase):
         self.autor = Autor.objects.create(nome="George", sobrenome="Orwell")
         self.livro = Livro.objects.create(
             titulo="1984",
+            tipo="revista",
             autor=self.autor,
             ano=1949,
             isbn="978-0-452-28423-4",
+            categoria="800",
         )
         self.exemplar = Exemplar.objects.create(
             livro=self.livro,
@@ -143,6 +145,30 @@ class BibliotecaBusinessRulesTests(TestCase):
         response = self.client.get(reverse("lista_livros"))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "1984")
+        self.assertContains(response, "Literatura: Poesia")
+        self.assertNotContains(response, "800 – Literatura")
+
+    def test_lista_filtra_livros_por_nome_tipo_e_categoria(self):
+        outro_livro = Livro.objects.create(
+            titulo="Introdução à Biologia",
+            tipo="tcc",
+            autor=self.autor,
+            ano=2024,
+            isbn="978-1-000-00002-8",
+            categoria="500",
+        )
+
+        casos = [
+            ({"nome": "1984"}, self.livro, outro_livro),
+            ({"tipo": "revista"}, self.livro, outro_livro),
+            ({"categoria": "500"}, outro_livro, self.livro),
+            ({"nome": "George", "tipo": "revista", "categoria": "800"}, self.livro, outro_livro),
+        ]
+        for filtros, esperado, ausente in casos:
+            with self.subTest(filtros=filtros):
+                response = self.client.get(reverse("lista_livros"), filtros)
+                self.assertContains(response, esperado.titulo)
+                self.assertNotContains(response, ausente.titulo)
 
     def test_visitante_e_enviado_para_login(self):
         self.client.logout()
@@ -174,7 +200,11 @@ class BibliotecaBusinessRulesTests(TestCase):
                 "autor": self.autor.pk,
                 "ano": 2025,
                 "isbn": "978-1-000-00001-1",
+                "tipo": "jornal",
+                "categoria": "500",
             },
         )
         self.assertEqual(response.status_code, 302)
-        self.assertTrue(Livro.objects.filter(titulo="Django para Iniciantes").exists())
+        livro = Livro.objects.get(titulo="Django para Iniciantes")
+        self.assertEqual(livro.tipo, "jornal")
+        self.assertEqual(livro.categoria, "500")

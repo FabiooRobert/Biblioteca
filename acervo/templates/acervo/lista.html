@@ -19,14 +19,42 @@
     <a class="botao" href="{% url 'nova_reserva' %}">+ Nova reserva</a>
 {% endif %}
 
+{% if titulo == "Acervo de livros" or titulo == "Livros" %}
+<form method="get" class="filtros-livros">
+    <label for="filtro-nome">Nome
+        <input id="filtro-nome" type="search" name="nome" value="{{ filtro_nome }}" placeholder="Título ou autor">
+    </label>
+    <label for="filtro-tipo">Tipo
+        <select id="filtro-tipo" name="tipo">
+            <option value="">Todos os tipos</option>
+            {% for codigo, descricao in tipos %}
+                <option value="{{ codigo }}" {% if filtro_tipo == codigo %}selected{% endif %}>{{ descricao }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label for="filtro-categoria">Categoria
+        <select id="filtro-categoria" name="categoria">
+            <option value="">Todas as categorias</option>
+            {% for codigo, descricao in categorias %}
+                <option value="{{ codigo }}" {% if filtro_categoria == codigo %}selected{% endif %}>{{ descricao }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <button type="submit">Pesquisar</button>
+    <a href="{% url 'lista_livros' %}">Limpar</a>
+</form>
+{% endif %}
+
 {% if itens %}
 <table>
     <thead>
         <tr>
             {% if titulo == "Acervo de livros" or titulo == "Livros" %}
                 <th>Título</th>
+                <th>Tipo</th>
                 <th>Autor</th>
                 <th>Ano</th>
+                <th>Categoria</th>
                 <th>ISBN</th>
                 <th>Ações</th>
             {% elif titulo == "Autores" %}
@@ -67,8 +95,10 @@
             {% if titulo == "Acervo de livros" or titulo == "Livros" %}
                 <tr>
                     <td>{{ item.titulo }}</td>
+                    <td>{{ item.get_tipo_display }}</td>
                     <td>{{ item.autor }}</td>
                     <td>{{ item.ano }}</td>
+                    <td>{{ item.get_categoria_display }}</td>
                     <td>{{ item.isbn|default:"-" }}</td>
                     <td>
                         <a href="{% url 'editar_livro' item.pk %}">Editar</a>

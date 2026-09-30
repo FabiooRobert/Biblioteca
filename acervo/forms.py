@@ -13,7 +13,7 @@ class AutorForm(forms.ModelForm):
 class LivroForm(forms.ModelForm):
     class Meta:
         model = Livro
-        fields = ["titulo", "autor", "ano", "isbn"]
+        fields = ["titulo", "tipo", "autor", "ano", "isbn", "categoria"]
 
 
 class ExemplarForm(forms.ModelForm):

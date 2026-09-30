@@ -11,9 +11,9 @@ class AutorAdmin(admin.ModelAdmin):
 
 @admin.register(Livro)
 class LivroAdmin(admin.ModelAdmin):
-    list_display = ("titulo", "autor", "ano", "isbn")
-    list_filter = ("ano",)
-    search_fields = ("titulo", "autor__nome", "autor__sobrenome", "isbn")
+    list_display = ("titulo", "tipo", "autor", "ano", "isbn", "categoria")
+    list_filter = ("ano", "tipo", "categoria")
+    search_fields = ("titulo", "tipo", "autor__nome", "autor__sobrenome", "isbn", "categoria")
 
 
 @admin.register(Exemplar)

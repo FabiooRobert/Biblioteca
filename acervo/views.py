@@ -2,6 +2,7 @@ from django.contrib.auth import login
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib import messages
 from django.db import transaction
+from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -39,7 +40,34 @@ def inicio(request):
 
 def lista_livros(request):
     livros = Livro.objects.select_related("autor").all().order_by("titulo")
-    return render(request, "acervo/lista.html", {"itens": livros, "titulo": "Acervo de livros"})
+    nome = request.GET.get("nome", "").strip()
+    tipo = request.GET.get("tipo", "").strip()
+    categoria = request.GET.get("categoria", "").strip()
+
+    if nome:
+        livros = livros.filter(
+            Q(titulo__icontains=nome)
+            | Q(autor__nome__icontains=nome)
+            | Q(autor__sobrenome__icontains=nome)
+        )
+    if tipo:
+        livros = livros.filter(tipo=tipo)
+    if categoria:
+        livros = livros.filter(categoria=categoria)
+
+    return render(
+        request,
+        "acervo/lista.html",
+        {
+            "itens": livros,
+            "titulo": "Acervo de livros",
+            "tipos": Livro.TIPO_CHOICES,
+            "categorias": Livro.CATEGORIA_CHOICES,
+            "filtro_nome": nome,
+            "filtro_tipo": tipo,
+            "filtro_categoria": categoria,
+        },
+    )
 
 
 def novo_livro(request):
