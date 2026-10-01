@@ -9,7 +9,7 @@ def inicio(request):
 
 def lista_livros(request):
     livros = Livro.objects.all().order_by("titulo")
-    return render(request, "acervo/lista.html", {"livros": livros}
+    return render(request, "acervo/lista.html", {"livros": livros})
 
 
 def novo_livro(request):
