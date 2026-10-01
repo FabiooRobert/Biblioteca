@@ -1,0 +1,16 @@
+{% extends "acervo/base.html" %}
+
+{% block title %}{{ titulo_pagina }}{% endblock %}
+
+{% block conteudo %}
+<h2>{{ titulo_pagina }}</h2>
+
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Salvar</button>
+</form>
+
+<p><a href="{% url 'lista' %}">Voltar para o acervo</a></p>
+<p><a href="/admin/">Entrar no Admin</a></p>
+{% endblock %}
