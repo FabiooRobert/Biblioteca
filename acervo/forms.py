@@ -4,7 +4,7 @@ from .models import Livro
 
 class LivroForm(forms.ModelForm):
     class Meta:
-        model = Livro
+        model = Livr
         fields = ["titulo", "autor", "ano", "disponivel"]
         widgets = {
             "titulo": forms.TextInput(attrs={"class": "campo"}),
