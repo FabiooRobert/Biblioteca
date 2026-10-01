@@ -49,4 +49,4 @@ class LivroCrudTests(TestCase):
     def test_excluir_livro_remove_registro(self):
         response = self.client.post(reverse("excluir", args=[self.livro.pk]))
         self.assertEqual(response.status_code, 302)
-        self.assertFalse(Livro.objects.filter(pk=self.livro.pk).exists())
+        self.assertFalse(Livro.objects.filter(pk=self.livro.pk).exists()
