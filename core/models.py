@@ -22,12 +22,18 @@ class DaOrganizacao(models.Model):
 
 
 class Perfil(models.Model):
+    PAPEIS = [
+        ("admin", "Administrador"),
+        ("operador", "Operador"),
+    ]
+
     usuario = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="perfil",
     )
     organizacao = models.ForeignKey(Organizacao, on_delete=models.PROTECT)
+    papel = models.CharField(max_length=20, choices=PAPEIS, default="operador")
 
     def __str__(self):
         return f"{self.usuario} - {self.organizacao}"

@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from core.models import DaOrganizacao
 
 
@@ -33,6 +34,7 @@ class Livro(DaOrganizacao):
         default="000",
     )
     disponivel = models.BooleanField(default=True)
+    cadastrado_em = models.DateTimeField(default=timezone.now, editable=False)
 
     def __str__(self):
         return self.titulo

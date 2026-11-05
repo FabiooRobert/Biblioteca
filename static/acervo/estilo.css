@@ -144,3 +144,75 @@ form[action*="excluir"] {
 form[action*="excluir"] button {
     background: #9e3f3f;
 }
+
+
+/* Filtros de pesquisa do acervo */
+.filtros {
+    max-width: none;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1.5fr auto;
+    gap: 12px;
+    align-items: end;
+    padding: 18px;
+    margin: 20px 0;
+    background: #f7f5f0;
+    border: 1px solid #e4dccd;
+    border-radius: 10px;
+}
+
+.filtros > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.acoes-filtro {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 8px !important;
+}
+
+.acoes-filtro button,
+.acoes-filtro .botao {
+    margin-top: 0;
+    white-space: nowrap;
+}
+
+@media (max-width: 800px) {
+    .filtros {
+        grid-template-columns: 1fr;
+    }
+
+    .acoes-filtro {
+        flex-wrap: wrap;
+    }
+}
+
+.resumo-dashboard {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin: 20px 0 30px;
+}
+
+.resumo-dashboard > section {
+    padding: 18px;
+    border: 1px solid #e4dccd;
+    border-left: 4px solid #d9b76f;
+    background: #faf8f4;
+}
+
+.resumo-dashboard h3,
+.resumo-dashboard p {
+    margin: 0 0 8px;
+}
+
+.resumo-dashboard p:last-child {
+    margin-bottom: 0;
+}
+
+@media (max-width: 640px) {
+    .resumo-dashboard {
+        grid-template-columns: 1fr;
+    }
+}

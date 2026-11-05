@@ -13,4 +13,6 @@ class LivroSerializer(serializers.ModelSerializer):
             "tipo",
             "categoria",
             "disponivel",
+            "cadastrado_em",
         ]
+        read_only_fields = ["id", "cadastrado_em"]

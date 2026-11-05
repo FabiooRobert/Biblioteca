@@ -5,6 +5,48 @@
 {% block conteudo %}
 <h2>Acervo de livros</h2>
 
+<form method="get" class="filtros">
+    <div>
+        <label for="pesquisa">Pesquisar por nome ou autor</label>
+        <input
+            type="text"
+            id="pesquisa"
+            name="pesquisa"
+            value="{{ pesquisa }}"
+            placeholder="Digite o nome/título ou autor"
+        >
+    </div>
+
+    <div>
+        <label for="tipo">Tipo do acervo</label>
+        <select id="tipo" name="tipo">
+            <option value="">Todos os tipos</option>
+            {% for valor, nome in tipos %}
+                <option value="{{ valor }}" {% if tipo_selecionado == valor %}selected{% endif %}>
+                    {{ nome }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div>
+        <label for="categoria">Categoria</label>
+        <select id="categoria" name="categoria">
+            <option value="">Todas as categorias</option>
+            {% for valor, nome in categorias %}
+                <option value="{{ valor }}" {% if categoria_selecionada == valor %}selected{% endif %}>
+                    {{ valor }} – {{ nome }}
+                </option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="acoes-filtro">
+        <button type="submit">Pesquisar</button>
+        <a class="botao" href="{% url 'lista' %}">Limpar filtros</a>
+    </div>
+</form>
+
 {% if livros %}
 <table>
     <thead>
@@ -12,8 +54,10 @@
             <th>Título</th>
             <th>Autor</th>
             <th>Ano</th>
+            <th>Tipo</th>
+            <th>Categoria</th>
             <th>Disponível</th>
-            <th>Ações</th>
+            {% if is_admin %}<th>Ações</th>{% endif %}
         </tr>
     </thead>
     <tbody>
@@ -22,21 +66,25 @@
             <td>{{ livro.titulo }}</td>
             <td>{{ livro.autor }}</td>
             <td>{{ livro.ano }}</td>
+            <td>{{ livro.get_tipo_display }}</td>
+            <td>{{ livro.get_categoria_display }}</td>
             <td>{% if livro.disponivel %}Sim{% else %}Não{% endif %}</td>
-            <td>
-                <a href="{% url 'editar' livro.pk %}">Editar</a>
-                <form method="post" action="{% url 'excluir' livro.pk %}" style="display:inline;">
-                    {% csrf_token %}
-                    <button type="submit" onclick="return confirm('Deseja excluir este livro?')">Excluir</button>
-                </form>
-            </td>
+            {% if is_admin %}
+                <td>
+                    <a href="{% url 'editar' livro.pk %}">Editar</a>
+                    <form method="post" action="{% url 'excluir' livro.pk %}" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" onclick="return confirm('Deseja excluir este livro?')">Excluir</button>
+                    </form>
+                </td>
+            {% endif %}
         </tr>
         {% endfor %}
     </tbody>
 </table>
 {% else %}
-<p>Nenhum livro cadastrado.</p>
+<p>Nenhum item encontrado com os filtros informados.</p>
 {% endif %}
 
-<a class="botao" href="{% url 'novo' %}">+ Novo livro</a>
+{% if is_admin %}<a class="botao" href="{% url 'novo' %}">+ Novo livro</a>{% endif %}
 {% endblock %}

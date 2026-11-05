@@ -1,0 +1,65 @@
+{% extends "acervo/base.html" %}
+
+{% block title %}Dashboard | Biblioteca{% endblock %}
+
+{% block conteudo %}
+<h2>Dashboard da organização</h2>
+
+<form method="get" class="filtros">
+    <div>
+        <label for="periodo">Período</label>
+        <select id="periodo" name="periodo">
+            <option value="30" {% if periodo == "30" %}selected{% endif %}>Últimos 30 dias</option>
+            <option value="90" {% if periodo == "90" %}selected{% endif %}>Últimos 90 dias</option>
+            <option value="365" {% if periodo == "365" %}selected{% endif %}>Último ano</option>
+            <option value="todos" {% if periodo == "todos" %}selected{% endif %}>Todo o período</option>
+        </select>
+    </div>
+    <div class="acoes-filtro"><button type="submit">Aplicar</button></div>
+</form>
+
+<div class="resumo-dashboard" aria-label="Resumo do acervo">
+    <section>
+        <h3>Total de livros</h3>
+        <p><strong>{{ resumo.total }}</strong></p>
+    </section>
+    <section>
+        <h3>Disponíveis</h3>
+        <p><strong>{{ resumo.disponiveis }}</strong></p>
+    </section>
+    <section>
+        <h3>Indisponíveis</h3>
+        <p><strong>{{ resumo.indisponiveis }}</strong></p>
+    </section>
+</div>
+
+<section aria-label="Distribuição do acervo">
+    <h3>Livros por tipo</h3>
+    {% if por_tipo %}
+        <table>
+            <thead><tr><th>Tipo</th><th>Total</th></tr></thead>
+            <tbody>{% for item in por_tipo %}<tr><td>{{ item.nome }}</td><td>{{ item.total }}</td></tr>{% endfor %}</tbody>
+        </table>
+    {% else %}
+        <p>Sem livros no período selecionado.</p>
+    {% endif %}
+
+    <h3>Livros por categoria</h3>
+    {% if por_categoria %}
+        <table>
+            <thead><tr><th>Categoria</th><th>Total</th></tr></thead>
+            <tbody>{% for item in por_categoria %}<tr><td>{{ item.nome }}</td><td>{{ item.total }}</td></tr>{% endfor %}</tbody>
+        </table>
+    {% endif %}
+
+    <h3>Autores com mais livros</h3>
+    {% if autores %}
+        <table>
+            <thead><tr><th>Autor</th><th>Total de livros</th></tr></thead>
+            <tbody>{% for item in autores %}<tr><td>{{ item.autor }}</td><td>{{ item.total }}</td></tr>{% endfor %}</tbody>
+        </table>
+    {% else %}
+        <p>Sem autores para o período selecionado.</p>
+    {% endif %}
+</section>
+{% endblock %}

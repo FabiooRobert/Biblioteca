@@ -1,6 +1,8 @@
+from datetime import timedelta
 from django.test import TestCase
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 from core.models import Organizacao, Perfil
 from .models import Livro
@@ -12,7 +14,11 @@ class LivroCrudTests(TestCase):
         self.usuario = get_user_model().objects.create_user(
             username="usuario-a", password="senha-teste"
         )
-        Perfil.objects.create(usuario=self.usuario, organizacao=self.organizacao)
+        Perfil.objects.create(
+            usuario=self.usuario,
+            organizacao=self.organizacao,
+            papel="admin",
+        )
         self.client.login(username="usuario-a", password="senha-teste")
         self.livro = Livro.objects.create(
             titulo="Django para Iniciantes",
@@ -115,7 +121,11 @@ class LivroApiTests(TestCase):
         usuario = get_user_model().objects.create_user(
             username="api-a", password="senha-teste"
         )
-        Perfil.objects.create(usuario=usuario, organizacao=self.organizacao)
+        Perfil.objects.create(
+            usuario=usuario,
+            organizacao=self.organizacao,
+            papel="admin",
+        )
         self.client.login(username="api-a", password="senha-teste")
         self.url = "/api/livros/"
 
@@ -156,6 +166,7 @@ class LivroApiTests(TestCase):
         self.assertIn(response.status_code, (401, 403))
 
     def test_api_cria_livro_na_organizacao_do_usuario(self):
+        outra_org = Organizacao.objects.create(nome="Biblioteca B")
         response = self.client.post(
             self.url,
             {
@@ -165,6 +176,7 @@ class LivroApiTests(TestCase):
                 "tipo": "OUTRO",
                 "categoria": "000",
                 "disponivel": True,
+                "organizacao": outra_org.pk,
             },
             content_type="application/json",
         )
@@ -173,3 +185,78 @@ class LivroApiTests(TestCase):
         livro = Livro.objects.get(titulo="Livro criado pela API")
         self.assertEqual(livro.organizacao, self.organizacao)
         self.assertNotIn("organizacao", response.json())
+
+    def test_operador_pode_consultar_mas_nao_criar_pela_api(self):
+        operador = get_user_model().objects.create_user(
+            username="operador", password="senha-teste"
+        )
+        Perfil.objects.create(
+            usuario=operador,
+            organizacao=self.organizacao,
+            papel="operador",
+        )
+        self.client.force_login(operador)
+
+        leitura = self.client.get(self.url)
+        escrita = self.client.post(
+            self.url,
+            {"titulo": "Negado", "autor": "Autor", "ano": 2025},
+            content_type="application/json",
+        )
+
+        self.assertEqual(leitura.status_code, 200)
+        self.assertEqual(escrita.status_code, 403)
+
+
+class DashboardTests(TestCase):
+    def setUp(self):
+        self.organizacao = Organizacao.objects.create(nome="Biblioteca A")
+        usuario = get_user_model().objects.create_user(
+            username="operador-painel", password="senha-teste"
+        )
+        Perfil.objects.create(
+            usuario=usuario,
+            organizacao=self.organizacao,
+            papel="operador",
+        )
+        self.client.login(username="operador-painel", password="senha-teste")
+
+    def test_dashboard_agrega_apenas_a_organizacao_e_aplica_periodo(self):
+        Livro.objects.create(
+            titulo="Livro atual",
+            autor="Autora",
+            ano=2025,
+            disponivel=True,
+            organizacao=self.organizacao,
+        )
+        antigo = Livro.objects.create(
+            titulo="Livro antigo",
+            autor="Autor antigo",
+            ano=2000,
+            disponivel=False,
+            organizacao=self.organizacao,
+        )
+        Livro.objects.filter(pk=antigo.pk).update(
+            cadastrado_em=timezone.now() - timedelta(days=60)
+        )
+        outra_org = Organizacao.objects.create(nome="Biblioteca B")
+        Livro.objects.create(
+            titulo="Livro de outra organização",
+            autor="Outro autor",
+            ano=2025,
+            organizacao=outra_org,
+        )
+
+        response = self.client.get(reverse("dashboard"), {"periodo": "30"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["resumo"]["total"], 1)
+        self.assertEqual(response.context["resumo"]["disponiveis"], 1)
+
+    def test_operador_nao_pode_criar_livro_pela_tela(self):
+        response = self.client.post(
+            reverse("novo"),
+            {"titulo": "Negado", "autor": "Autor", "ano": 2025},
+        )
+
+        self.assertEqual(response.status_code, 403)
