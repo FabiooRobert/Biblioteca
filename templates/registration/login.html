@@ -1,0 +1,15 @@
+{% extends "acervo/base.html" %}
+
+{% block title %}Entrar | Biblioteca{% endblock %}
+
+{% block conteudo %}
+<section>
+    <h2>Entrar</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="hidden" name="next" value="{{ next }}">
+        <button type="submit">Entrar</button>
+    </form>
+</section>
+{% endblock %}
