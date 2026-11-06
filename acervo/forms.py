@@ -3,6 +3,12 @@ from .models import Livro
 
 
 class LivroForm(forms.ModelForm):
+    def __init__(self, *args, organizacao, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["autor"].queryset = self.fields["autor"].queryset.filter(
+            organizacao=organizacao
+        )
+
     class Meta:
         model = Livro
         fields = ["titulo", "autor", "ano", "tipo", "categoria", "disponivel"]

@@ -32,7 +32,9 @@ def lista_livros(request):
 
     if pesquisa:
         livros = livros.filter(
-            Q(titulo__icontains=pesquisa) | Q(autor__icontains=pesquisa)
+            Q(titulo__icontains=pesquisa)
+            | Q(autor__nome__icontains=pesquisa)
+            | Q(autor__sobrenome__icontains=pesquisa)
         )
 
     if tipo:
@@ -87,7 +89,18 @@ def dashboard(request):
         }
         for item in livros.values("categoria").annotate(total=Count("id")).order_by("-total", "categoria")
     ]
-    autores = livros.values("autor").annotate(total=Count("id")).order_by("-total", "autor")[:5]
+    autores = (
+        livros.values("autor__nome", "autor__sobrenome")
+        .annotate(total=Count("id"))
+        .order_by("-total", "autor__sobrenome", "autor__nome")[:5]
+    )
+    autores = [
+        {
+            "nome": f"{item['autor__nome']} {item['autor__sobrenome']}".strip(),
+            "total": item["total"],
+        }
+        for item in autores
+    ]
 
     return render(
         request,
@@ -107,14 +120,14 @@ def dashboard(request):
 def novo_livro(request):
     org = org_atual(request)
     if request.method == "POST":
-        form = LivroForm(request.POST)
+        form = LivroForm(request.POST, organizacao=org)
         if form.is_valid():
             livro = form.save(commit=False)
             livro.organizacao = org
             livro.save()
             return redirect("lista")
     else:
-        form = LivroForm()
+        form = LivroForm(organizacao=org)
 
     return render(request, "acervo/form.html", {"form": form, "titulo_pagina": "Novo livro"})
 
@@ -126,12 +139,12 @@ def editar_livro(request, pk):
     livro = get_object_or_404(Livro, pk=pk, organizacao=org)
 
     if request.method == "POST":
-        form = LivroForm(request.POST, instance=livro)
+        form = LivroForm(request.POST, instance=livro, organizacao=org)
         if form.is_valid():
             form.save()
             return redirect("lista")
     else:
-        form = LivroForm(instance=livro)
+        form = LivroForm(instance=livro, organizacao=org)
 
     return render(request, "acervo/form.html", {"form": form, "titulo_pagina": "Editar livro"})
 

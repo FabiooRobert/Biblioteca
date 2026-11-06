@@ -56,7 +56,7 @@
     {% if autores %}
         <table>
             <thead><tr><th>Autor</th><th>Total de livros</th></tr></thead>
-            <tbody>{% for item in autores %}<tr><td>{{ item.autor }}</td><td>{{ item.total }}</td></tr>{% endfor %}</tbody>
+            <tbody>{% for item in autores %}<tr><td>{{ item.nome }}</td><td>{{ item.total }}</td></tr>{% endfor %}</tbody>
         </table>
     {% else %}
         <p>Sem autores para o período selecionado.</p>

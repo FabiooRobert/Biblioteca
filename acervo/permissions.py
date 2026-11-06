@@ -12,7 +12,7 @@ def administrador_requerido(view_func):
     @wraps(view_func)
     def wrapped(request, *args, **kwargs):
         if not usuario_eh_administrador(request.user):
-            raise PermissionDenied("Apenas administradores podem alterar livros.")
+            raise PermissionDenied("Apenas administradores podem alterar o acervo.")
         return view_func(request, *args, **kwargs)
 
     return wrapped
@@ -26,7 +26,7 @@ class TemPerfil(BasePermission):
 
 
 class AdministradorPodeEscrever(BasePermission):
-    message = "Apenas administradores podem alterar livros."
+    message = "Apenas administradores podem alterar o acervo."
 
     def has_permission(self, request, view):
         return request.method in self.safe_methods or usuario_eh_administrador(request.user)
