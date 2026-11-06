@@ -643,7 +643,7 @@ class DashboardTests(TestCase):
         )
 
     def test_dashboard_cobre_agregacoes_e_todos_os_periodos(self):
-        atual = Livro.objects.create(
+        Livro.objects.create(
             titulo="Revista atual",
             autor=self.autor,
             ano=2026,
