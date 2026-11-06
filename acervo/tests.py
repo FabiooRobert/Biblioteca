@@ -642,6 +642,95 @@ class DashboardTests(TestCase):
             [{"nome": "Autora A", "total": 1}],
         )
 
+    def test_dashboard_cobre_agregacoes_e_todos_os_periodos(self):
+        atual = Livro.objects.create(
+            titulo="Revista atual",
+            autor=self.autor,
+            ano=2026,
+            tipo="REVISTA",
+            categoria="100",
+            disponivel=True,
+            organizacao=self.organizacao,
+        )
+        antigo = Livro.objects.create(
+            titulo="Jornal antigo",
+            autor=self.autor,
+            ano=2025,
+            tipo="JORNAL",
+            categoria="200",
+            disponivel=False,
+            organizacao=self.organizacao,
+        )
+        muito_antigo = Livro.objects.create(
+            titulo="TCC antigo",
+            autor=self.autor,
+            ano=2020,
+            tipo="TCC",
+            categoria="300",
+            organizacao=self.organizacao,
+        )
+        Livro.objects.filter(pk=antigo.pk).update(
+            cadastrado_em=timezone.now() - timedelta(days=60)
+        )
+        Livro.objects.filter(pk=muito_antigo.pk).update(
+            cadastrado_em=timezone.now() - timedelta(days=400)
+        )
+        outra_org = Organizacao.objects.create(nome="Biblioteca C")
+        outro_autor = Autor.objects.create(
+            nome="Outro",
+            sobrenome="Autor",
+            organizacao=outra_org,
+        )
+        Livro.objects.create(
+            titulo="Livro externo",
+            autor=outro_autor,
+            ano=2026,
+            organizacao=outra_org,
+        )
+
+        response = self.client.get(reverse("dashboard"), {"periodo": "90"})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["resumo"],
+            {"total": 2, "disponiveis": 1, "indisponiveis": 1},
+        )
+        self.assertEqual(
+            {item["nome"]: item["total"] for item in response.context["por_tipo"]},
+            {"Jornal": 1, "Revista": 1},
+        )
+        self.assertEqual(
+            {
+                item["nome"]: item["total"]
+                for item in response.context["por_categoria"]
+            },
+            {
+                "Filosofia e Psicologia": 1,
+                "Religião e Teologia": 1,
+            },
+        )
+        self.assertEqual(
+            response.context["autores"],
+            [{"nome": "Autora A", "total": 2}],
+        )
+
+        for periodo, total_esperado in (
+            ("30", 1),
+            ("365", 2),
+            ("todos", 3),
+            ("fora-do-intervalo", 1),
+        ):
+            with self.subTest(periodo=periodo):
+                resposta_periodo = self.client.get(
+                    reverse("dashboard"),
+                    {"periodo": periodo},
+                )
+                self.assertEqual(resposta_periodo.status_code, 200)
+                self.assertEqual(
+                    resposta_periodo.context["resumo"]["total"],
+                    total_esperado,
+                )
+
     def test_operador_nao_pode_criar_livro_pela_tela(self):
         response = self.client.post(
             reverse("novo"),
