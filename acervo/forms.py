@@ -1,45 +1,139 @@
 from django import forms
+from django.contrib.auth.forms import UserCreationForm
+from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 
-from .models import Autor, Emprestimo, Exemplar, Livro, Membro, Reserva
+from .models import Autor, Emprestimo, Exemplar, Livro, Membro, Organizacao, Reserva
 
 
-class AutorForm(forms.ModelForm):
+class CadastroForm(UserCreationForm):
+    nome_organizacao = forms.CharField(
+        label="Nome da biblioteca",
+        max_length=120,
+        required=False,
+        help_text="Preencha apenas para criar uma biblioteca nova.",
+    )
+    codigo_convite = forms.UUIDField(
+        label="Código de convite",
+        required=False,
+        help_text="Use no lugar do nome para entrar em uma biblioteca existente.",
+    )
+
+    def clean(self):
+        dados = super().clean()
+        nome = (dados.get("nome_organizacao") or "").strip()
+        codigo = dados.get("codigo_convite")
+
+        if bool(nome) == bool(codigo):
+            raise ValidationError("Informe o nome de uma nova biblioteca ou um código de convite, não os dois.")
+        if codigo and not Organizacao.objects.filter(codigo_convite=codigo).exists():
+            self.add_error("codigo_convite", "Código de convite inválido.")
+
+        dados["nome_organizacao"] = nome
+        return dados
+
+
+class OrganizacaoCriarForm(forms.Form):
+    nome = forms.CharField(label="Nome da biblioteca", max_length=120)
+
+
+class OrganizacaoEntrarForm(forms.Form):
+    codigo_convite = forms.UUIDField(label="Código de convite")
+
+
+class OrganizacaoModelForm(forms.ModelForm):
+    organizacao_campos_unicos = ()
+
+    def __init__(self, *args, organizacao=None, **kwargs):
+        self.organizacao = organizacao
+        super().__init__(*args, **kwargs)
+
+        if organizacao:
+            if not self.instance.pk:
+                self.instance.organizacao = organizacao
+            for campo in self.fields.values():
+                queryset = getattr(campo, "queryset", None)
+                if queryset is not None and any(
+                    field.name == "organizacao" for field in queryset.model._meta.fields
+                ):
+                    campo.queryset = queryset.filter(organizacao=organizacao)
+
+    def clean(self):
+        dados = super().clean()
+        if self.organizacao is None:
+            return dados
+
+        for nome_campo in self.organizacao_campos_unicos:
+            valor = dados.get(nome_campo)
+            if valor is None:
+                continue
+
+            registros = self._meta.model.objects.filter(
+                organizacao=self.organizacao,
+                **{nome_campo: valor},
+            )
+            if self.instance.pk:
+                registros = registros.exclude(pk=self.instance.pk)
+            if registros.exists():
+                self.add_error(nome_campo, "Este valor já está cadastrado nesta organização.")
+
+        return dados
+
+    def save(self, commit=True):
+        if self.organizacao is None:
+            raise ValueError("A organização ativa é obrigatória para salvar este formulário.")
+
+        instancia = super().save(commit=False)
+        instancia.organizacao = self.organizacao
+        if commit:
+            instancia.save()
+            self.save_m2m()
+        return instancia
+
+
+class AutorForm(OrganizacaoModelForm):
     class Meta:
         model = Autor
         fields = ["nome", "sobrenome"]
 
 
-class LivroForm(forms.ModelForm):
+class LivroForm(OrganizacaoModelForm):
+    organizacao_campos_unicos = ("isbn",)
+
     class Meta:
         model = Livro
         fields = ["titulo", "tipo", "autor", "ano", "isbn", "categoria"]
 
 
-class ExemplarForm(forms.ModelForm):
+class ExemplarForm(OrganizacaoModelForm):
+    organizacao_campos_unicos = ("codigo",)
+
     class Meta:
         model = Exemplar
         fields = ["livro", "codigo", "status"]
 
 
-class MembroForm(forms.ModelForm):
+class MembroForm(OrganizacaoModelForm):
+    organizacao_campos_unicos = ("cpf", "email")
+
     class Meta:
         model = Membro
         fields = ["nome", "sobrenome", "cpf", "email", "ativo"]
 
 
-class EmprestimoForm(forms.ModelForm):
+class EmprestimoForm(OrganizacaoModelForm):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        organizacao = kwargs.pop("organizacao", None)
+        self.organizacao = organizacao
+        super().__init__(*args, organizacao=organizacao, **kwargs)
         self._original_exemplar_id = self.instance.exemplar_id
-        exemplares_disponiveis = Exemplar.objects.filter(status="disponivel")
-        membros_ativos = Membro.objects.filter(ativo=True)
-
-        if self.instance.pk:
-            exemplares_disponiveis = exemplares_disponiveis | Exemplar.objects.filter(
-                pk=self.instance.exemplar_id
-            )
-            membros_ativos = membros_ativos | Membro.objects.filter(pk=self.instance.membro_id)
+        exemplares_disponiveis = Exemplar.objects.filter(
+            organizacao=organizacao,
+        ).filter(Q(status="disponivel") | Q(pk=self.instance.exemplar_id))
+        membros_ativos = Membro.objects.filter(
+            organizacao=organizacao,
+        ).filter(Q(ativo=True) | Q(pk=self.instance.membro_id))
 
         self.fields["exemplar"].queryset = exemplares_disponiveis
         self.fields["membro"].queryset = membros_ativos
@@ -69,14 +163,19 @@ class EmprestimoForm(forms.ModelForm):
 
     def save(self, commit=True):
         emprestimo = super().save(commit=False)
+        emprestimo.organizacao = self.organizacao
         if not commit:
             return emprestimo
 
         with transaction.atomic():
             emprestimo.save()
             if self._original_exemplar_id and self._original_exemplar_id != emprestimo.exemplar_id:
-                exemplar_anterior = Exemplar.objects.get(pk=self._original_exemplar_id)
+                exemplar_anterior = Exemplar.objects.get(
+                    pk=self._original_exemplar_id,
+                    organizacao=self.organizacao,
+                )
                 emprestimos_ativos = Emprestimo.objects.filter(
+                    organizacao=self.organizacao,
                     exemplar=exemplar_anterior,
                     status__in=["ativo", "atrasado"],
                 ).exclude(pk=emprestimo.pk)
@@ -108,7 +207,7 @@ class DevolucaoForm(forms.Form):
         return data_devolucao
 
 
-class ReservaForm(forms.ModelForm):
+class ReservaForm(OrganizacaoModelForm):
     class Meta:
         model = Reserva
         fields = ["livro", "membro", "data_reserva", "status"]
@@ -124,6 +223,7 @@ class ReservaForm(forms.ModelForm):
 
         if livro and data_reserva and status == "ativa":
             reservas_conflitantes = Reserva.objects.filter(
+                organizacao=self.organizacao,
                 livro=livro,
                 data_reserva=data_reserva,
                 status="ativa",

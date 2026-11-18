@@ -4,6 +4,7 @@
 
 {% block conteudo %}
 <h2>Criar conta</h2>
+<p>Crie uma nova biblioteca ou use um código para entrar em uma existente.</p>
 <form method="post">
     {% csrf_token %}
     {{ form.as_p }}

@@ -5,15 +5,26 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from .models import Autor, Emprestimo, Exemplar, Livro, Membro, Reserva
+from .models import Autor, Emprestimo, Exemplar, Livro, Membro, Organizacao, OrganizacaoUsuario, Reserva
 
 
 class BibliotecaBusinessRulesTests(TestCase):
     def setUp(self):
+        self.organizacao = Organizacao.objects.create(nome="Biblioteca de testes")
         self.usuario = get_user_model().objects.create_user(username="leitora", password="senha-forte-123")
+        OrganizacaoUsuario.objects.create(
+            organizacao=self.organizacao,
+            usuario=self.usuario,
+            papel="admin",
+        )
         self.client.force_login(self.usuario)
-        self.autor = Autor.objects.create(nome="George", sobrenome="Orwell")
+        self.autor = Autor.objects.create(
+            organizacao=self.organizacao,
+            nome="George",
+            sobrenome="Orwell",
+        )
         self.livro = Livro.objects.create(
+            organizacao=self.organizacao,
             titulo="1984",
             tipo="revista",
             autor=self.autor,
@@ -22,17 +33,20 @@ class BibliotecaBusinessRulesTests(TestCase):
             categoria="800",
         )
         self.exemplar = Exemplar.objects.create(
+            organizacao=self.organizacao,
             livro=self.livro,
             codigo="EX-001",
             status="disponivel",
         )
         self.membro = Membro.objects.create(
+            organizacao=self.organizacao,
             nome="Ana",
             sobrenome="Silva",
             cpf="12345678900",
             email="ana@example.com",
         )
         self.membro_2 = Membro.objects.create(
+            organizacao=self.organizacao,
             nome="Bruno",
             sobrenome="Costa",
             cpf="12345678901",
@@ -41,6 +55,7 @@ class BibliotecaBusinessRulesTests(TestCase):
 
     def test_calculo_multa_por_atraso(self):
         emprestimo = Emprestimo.objects.create(
+            organizacao=self.organizacao,
             exemplar=self.exemplar,
             membro=self.membro,
             data_emprestimo=date(2026, 1, 1),
@@ -53,6 +68,7 @@ class BibliotecaBusinessRulesTests(TestCase):
 
     def test_multa_conta_atraso_de_emprestimo_ainda_aberto(self):
         emprestimo = Emprestimo.objects.create(
+            organizacao=self.organizacao,
             exemplar=self.exemplar,
             membro=self.membro,
             data_emprestimo=date(2026, 1, 1),
@@ -82,6 +98,7 @@ class BibliotecaBusinessRulesTests(TestCase):
 
     def test_devolucao_atrasada_calcula_multa_e_libera_exemplar(self):
         emprestimo = Emprestimo.objects.create(
+            organizacao=self.organizacao,
             exemplar=self.exemplar,
             membro=self.membro,
             data_emprestimo=date(2026, 2, 1),
@@ -106,11 +123,13 @@ class BibliotecaBusinessRulesTests(TestCase):
 
     def test_fila_de_reserva_gera_posicao(self):
         reserva_1 = Reserva.objects.create(
+            organizacao=self.organizacao,
             livro=self.livro,
             membro=self.membro,
             data_reserva=date(2026, 2, 1),
         )
         reserva_2 = Reserva.objects.create(
+            organizacao=self.organizacao,
             livro=self.livro,
             membro=self.membro_2,
             data_reserva=date(2026, 2, 2),
@@ -122,6 +141,7 @@ class BibliotecaBusinessRulesTests(TestCase):
     def test_nao_permite_reservar_mesmo_livro_na_mesma_data(self):
         data_reserva = date(2026, 2, 1)
         Reserva.objects.create(
+            organizacao=self.organizacao,
             livro=self.livro,
             membro=self.membro,
             data_reserva=data_reserva,
@@ -150,6 +170,7 @@ class BibliotecaBusinessRulesTests(TestCase):
 
     def test_lista_filtra_livros_por_nome_tipo_e_categoria(self):
         outro_livro = Livro.objects.create(
+            organizacao=self.organizacao,
             titulo="Introdução à Biologia",
             tipo="tcc",
             autor=self.autor,
@@ -170,6 +191,152 @@ class BibliotecaBusinessRulesTests(TestCase):
                 self.assertContains(response, esperado.titulo)
                 self.assertNotContains(response, ausente.titulo)
 
+    def test_lista_e_edicao_nao_acessam_outra_organizacao(self):
+        outra_organizacao = Organizacao.objects.create(nome="Biblioteca vizinha")
+        outro_autor = Autor.objects.create(
+            organizacao=outra_organizacao,
+            nome="Autora",
+            sobrenome="Externa",
+        )
+        outro_livro = Livro.objects.create(
+            organizacao=outra_organizacao,
+            titulo="Registro de outra biblioteca",
+            tipo="outro",
+            autor=outro_autor,
+            ano=2026,
+            isbn="ISBN-OUTRA-ORG",
+        )
+
+        lista = self.client.get(reverse("lista_livros"))
+        edicao = self.client.get(reverse("editar_livro", args=[outro_livro.pk]))
+        painel = self.client.get(reverse("painel"))
+
+        self.assertContains(lista, self.livro.titulo)
+        self.assertNotContains(lista, outro_livro.titulo)
+        self.assertEqual(edicao.status_code, 404)
+        self.assertEqual(painel.context["total_livros"], 1)
+
+        resposta_formulario = self.client.post(
+            reverse("novo_livro"),
+            {
+                "titulo": "Tentativa de vínculo externo",
+                "tipo": "outro",
+                "autor": outro_autor.pk,
+                "ano": 2026,
+                "isbn": "ISBN-INVASAO",
+                "categoria": "800",
+            },
+        )
+        self.assertEqual(resposta_formulario.status_code, 200)
+        self.assertFalse(
+            Livro.objects.filter(
+                organizacao=self.organizacao,
+                titulo="Tentativa de vínculo externo",
+            ).exists()
+        )
+
+    def test_emprestimo_rejeita_membro_de_outra_organizacao(self):
+        outra_organizacao = Organizacao.objects.create(nome="Biblioteca de outro membro")
+        outro_membro = Membro.objects.create(
+            organizacao=outra_organizacao,
+            nome="Pessoa",
+            sobrenome="Externa",
+            cpf="12345678999",
+            email="externa@example.com",
+        )
+
+        response = self.client.post(
+            reverse("novo_emprestimo"),
+            {
+                "exemplar": self.exemplar.pk,
+                "membro": outro_membro.pk,
+                "data_emprestimo": "2026-02-01",
+                "data_devolucao_prevista": "2026-02-08",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Emprestimo.objects.exists())
+
+    def test_entrar_por_convite_troca_organizacao_ativa(self):
+        outra_organizacao = Organizacao.objects.create(nome="Biblioteca convidada")
+
+        response = self.client.post(
+            reverse("organizacoes"),
+            {
+                "acao": "entrar",
+                "codigo_convite": str(outra_organizacao.codigo_convite),
+            },
+        )
+        painel = self.client.get(reverse("painel"))
+
+        self.assertRedirects(response, reverse("organizacoes"))
+        self.assertTrue(
+            OrganizacaoUsuario.objects.filter(
+                organizacao=outra_organizacao,
+                usuario=self.usuario,
+                papel="membro",
+            ).exists()
+        )
+        self.assertEqual(painel.context["total_livros"], 0)
+
+    def test_usuario_cria_organizacao_e_alterna_contexto(self):
+        response = self.client.post(
+            reverse("organizacoes"),
+            {"acao": "criar", "nome": "Biblioteca nova"},
+        )
+        nova_organizacao = Organizacao.objects.get(nome="Biblioteca nova")
+        painel_novo = self.client.get(reverse("painel"))
+
+        self.assertRedirects(response, reverse("organizacoes"))
+        self.assertTrue(
+            OrganizacaoUsuario.objects.filter(
+                organizacao=nova_organizacao,
+                usuario=self.usuario,
+                papel="admin",
+            ).exists()
+        )
+        self.assertEqual(painel_novo.context["total_livros"], 0)
+
+        self.client.post(
+            reverse("organizacoes"),
+            {"acao": "trocar", "organizacao_id": self.organizacao.pk},
+        )
+        painel_original = self.client.get(reverse("painel"))
+        self.assertEqual(painel_original.context["total_livros"], 1)
+
+    def test_codigo_de_convite_inexistente_mostra_erro(self):
+        response = self.client.post(
+            reverse("organizacoes"),
+            {
+                "acao": "entrar",
+                "codigo_convite": "00000000-0000-0000-0000-000000000000",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Código de convite não encontrado.")
+
+    def test_isbn_pode_repetir_em_outra_organizacao(self):
+        outra_organizacao = Organizacao.objects.create(nome="Biblioteca ISBN")
+        outro_autor = Autor.objects.create(
+            organizacao=outra_organizacao,
+            nome="Outro",
+            sobrenome="Autor",
+        )
+
+        outro_livro = Livro.objects.create(
+            organizacao=outra_organizacao,
+            titulo="Mesmo ISBN, outro acervo",
+            tipo="outro",
+            autor=outro_autor,
+            ano=2026,
+            isbn=self.livro.isbn,
+        )
+
+        self.assertNotEqual(outro_livro.organizacao, self.livro.organizacao)
+        self.assertEqual(outro_livro.isbn, self.livro.isbn)
+
     def test_visitante_e_enviado_para_login(self):
         self.client.logout()
         response = self.client.get(reverse("lista_livros"))
@@ -186,11 +353,23 @@ class BibliotecaBusinessRulesTests(TestCase):
         self.client.logout()
         response = self.client.post(
             reverse("cadastro"),
-            {"username": "nova_leitora", "password1": "Senha-segura-456", "password2": "Senha-segura-456"},
+            {
+                "username": "nova_leitora",
+                "password1": "Senha-segura-456",
+                "password2": "Senha-segura-456",
+                "nome_organizacao": "Biblioteca da nova leitora",
+            },
         )
-        self.assertRedirects(response, reverse("lista_livros"))
+        self.assertRedirects(response, reverse("painel"))
         self.assertTrue(get_user_model().objects.filter(username="nova_leitora").exists())
         self.assertTrue(response.wsgi_request.user.is_authenticated)
+        self.assertTrue(
+            OrganizacaoUsuario.objects.filter(
+                usuario__username="nova_leitora",
+                organizacao__nome="Biblioteca da nova leitora",
+                papel="admin",
+            ).exists()
+        )
 
     def test_novo_livro_cria_registro(self):
         response = self.client.post(

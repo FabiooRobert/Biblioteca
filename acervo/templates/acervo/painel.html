@@ -1,0 +1,97 @@
+{% extends "acervo/base.html" %}
+
+{% block title %}Painel | Biblioteca / Acervo{% endblock %}
+{% block main_class %}main-painel{% endblock %}
+
+{% block conteudo %}
+<section class="painel-acervo">
+    <div class="painel-cabecalho">
+        <div>
+            <p class="painel-sobretitulo">VISÃO GERAL</p>
+            <h2>Movimento da biblioteca</h2>
+            <p class="painel-descricao">Acompanhe o acervo e as operações em andamento.</p>
+        </div>
+        <a class="botao painel-acao-principal" href="{% url 'novo_emprestimo' %}">Registrar empréstimo</a>
+    </div>
+
+    <section class="painel-indicadores" aria-label="Indicadores da biblioteca">
+        <a class="indicador" href="{% url 'lista_livros' %}">
+            <span class="indicador-rotulo">Livros catalogados</span>
+            <strong>{{ total_livros }}</strong>
+            <span class="indicador-nota">No acervo</span>
+        </a>
+        <a class="indicador indicador-verde" href="{% url 'lista_exemplares' %}">
+            <span class="indicador-rotulo">Exemplares disponíveis</span>
+            <strong>{{ total_exemplares_disponiveis }}</strong>
+            <span class="indicador-nota">Prontos para empréstimo</span>
+        </a>
+        <a class="indicador" href="{% url 'lista_membros' %}">
+            <span class="indicador-rotulo">Membros ativos</span>
+            <strong>{{ total_membros_ativos }}</strong>
+            <span class="indicador-nota">Com cadastro ativo</span>
+        </a>
+        <a class="indicador indicador-ambar" href="{% url 'lista_emprestimos' %}">
+            <span class="indicador-rotulo">Empréstimos em aberto</span>
+            <strong>{{ total_emprestimos_abertos }}</strong>
+            <span class="indicador-nota">Aguardando devolução</span>
+        </a>
+        <a class="indicador indicador-vermelho" href="{% url 'lista_emprestimos' %}">
+            <span class="indicador-rotulo">Em atraso</span>
+            <strong>{{ total_emprestimos_atrasados }}</strong>
+            <span class="indicador-nota">Prazo de devolução vencido</span>
+        </a>
+        <a class="indicador indicador-azul" href="{% url 'lista_reservas' %}">
+            <span class="indicador-rotulo">Reservas ativas</span>
+            <strong>{{ total_reservas_ativas }}</strong>
+            <span class="indicador-nota">Na fila de atendimento</span>
+        </a>
+    </section>
+
+    <div class="painel-conteudo">
+        <section class="painel-bloco painel-recentes">
+            <div class="painel-bloco-cabecalho">
+                <div>
+                    <p class="painel-sobretitulo">ACOMPANHAMENTO</p>
+                    <h3>Empréstimos recentes</h3>
+                </div>
+                <a href="{% url 'lista_emprestimos' %}">Ver todos</a>
+            </div>
+            {% if emprestimos_recentes %}
+                <div class="tabela-responsiva">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Livro</th>
+                                <th>Membro</th>
+                                <th>Devolução prevista</th>
+                                <th>Situação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in emprestimos_recentes %}
+                                <tr>
+                                    <td>{{ item.registro.exemplar.livro.titulo }}</td>
+                                    <td>{{ item.registro.membro }}</td>
+                                    <td>{{ item.registro.data_devolucao_prevista|date:"d/m/Y" }}</td>
+                                    <td><span class="status-painel status-{{ item.classe_status }}">{{ item.situacao }}</span></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="painel-vazio">Ainda não há empréstimos registrados.</p>
+            {% endif %}
+        </section>
+
+        <aside class="painel-bloco painel-atalhos">
+            <p class="painel-sobretitulo">OPERAÇÃO</p>
+            <h3>Acesso rápido</h3>
+            <a href="{% url 'novo_livro' %}">Cadastrar livro <span>+</span></a>
+            <a href="{% url 'novo_membro' %}">Cadastrar membro <span>+</span></a>
+            <a href="{% url 'novo_emprestimo' %}">Registrar empréstimo <span>+</span></a>
+            <a href="{% url 'nova_reserva' %}">Criar reserva <span>+</span></a>
+        </aside>
+    </div>
+</section>
+{% endblock %}

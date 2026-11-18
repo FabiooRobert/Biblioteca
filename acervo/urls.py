@@ -8,6 +8,8 @@ urlpatterns = [
     path("login/", LoginView.as_view(template_name="acervo/login.html", redirect_authenticated_user=True), name="login"),
     path("cadastro/", views.cadastro, name="cadastro"),
     path("logout/", LogoutView.as_view(), name="logout"),
+    path("organizacoes/", login_required(views.organizacoes), name="organizacoes"),
+    path("painel/", login_required(views.painel), name="painel"),
     path("", login_required(views.inicio), name="inicio"),
     path("livros/", login_required(views.lista_livros), name="lista_livros"),
     path("livros/novo/", login_required(views.novo_livro), name="novo_livro"),
