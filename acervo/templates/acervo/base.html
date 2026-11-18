@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Biblioteca{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'acervo/estilo.css' %}">
+    <script src="{% static 'acervo/organizacao.js' %}" defer></script>
 </head>
 <body>
 <header>
@@ -29,7 +30,6 @@
                             </option>
                         {% endfor %}
                     </select>
-                    <button type="submit">Trocar</button>
                 </form>
             {% endif %}
             <a href="{% url 'lista_livros' %}">Livros</a>

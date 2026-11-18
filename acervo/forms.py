@@ -3,6 +3,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Q
+from django.utils import timezone
 
 from .models import Autor, Emprestimo, Exemplar, Livro, Membro, Organizacao, Reserva
 
@@ -40,6 +41,53 @@ class OrganizacaoCriarForm(forms.Form):
 
 class OrganizacaoEntrarForm(forms.Form):
     codigo_convite = forms.UUIDField(label="Código de convite")
+
+
+class FiltroMetricasForm(forms.Form):
+    granularidade = forms.ChoiceField(
+        choices=[("mes", "Mês"), ("dia", "Dia")],
+        required=False,
+        initial="mes",
+    )
+    mes = forms.DateField(
+        label="Mês específico",
+        required=False,
+        input_formats=["%Y-%m"],
+        widget=forms.DateInput(attrs={"type": "month"}, format="%Y-%m"),
+    )
+    data_inicio = forms.DateField(
+        label="De",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+    data_fim = forms.DateField(
+        label="Até",
+        required=False,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
+    def clean(self):
+        dados = super().clean()
+        mes = dados.get("mes")
+        inicio = dados.get("data_inicio")
+        fim = dados.get("data_fim")
+        granularidade = dados.get("granularidade") or "mes"
+        hoje = timezone.localdate()
+
+        if mes and (inicio or fim):
+            raise ValidationError("Escolha um mês específico ou um intervalo de datas, não ambos.")
+        if bool(inicio) != bool(fim):
+            raise ValidationError("Informe as duas datas do intervalo.")
+        if inicio and fim and inicio > fim:
+            self.add_error("data_fim", "A data final deve ser igual ou posterior à inicial.")
+        if fim and fim > hoje:
+            self.add_error("data_fim", "A consulta não pode incluir datas futuras.")
+        if mes and mes.replace(day=1) > hoje.replace(day=1):
+            self.add_error("mes", "Selecione um mês que já começou.")
+        if inicio and fim and granularidade == "dia" and (fim - inicio).days > 365:
+            raise ValidationError("A consulta diária aceita intervalos de até um ano.")
+
+        return dados
 
 
 class OrganizacaoModelForm(forms.ModelForm):

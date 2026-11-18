@@ -235,6 +235,90 @@ class BibliotecaBusinessRulesTests(TestCase):
             ).exists()
         )
 
+    def test_painel_calcula_kpis_ranking_serie_e_distribuicao(self):
+        hoje = date(2026, 6, 15)
+        livro_popular = Livro.objects.create(
+            organizacao=self.organizacao,
+            titulo="Animal Farm",
+            tipo="outro",
+            autor=self.autor,
+            ano=1945,
+            isbn="ISBN-ANIMAL-FARM",
+        )
+        exemplar_popular = Exemplar.objects.create(
+            organizacao=self.organizacao,
+            livro=livro_popular,
+            codigo="EX-002",
+        )
+        Emprestimo.objects.create(
+            organizacao=self.organizacao,
+            exemplar=self.exemplar,
+            membro=self.membro,
+            data_emprestimo=date(2026, 6, 14),
+            data_devolucao_prevista=date(2026, 6, 30),
+        )
+        Emprestimo.objects.create(
+            organizacao=self.organizacao,
+            exemplar=exemplar_popular,
+            membro=self.membro_2,
+            data_emprestimo=date(2026, 6, 10),
+            data_devolucao_prevista=date(2026, 6, 12),
+        )
+        Emprestimo.objects.create(
+            organizacao=self.organizacao,
+            exemplar=exemplar_popular,
+            membro=self.membro_2,
+            data_emprestimo=date(2026, 6, 2),
+            data_devolucao_prevista=date(2026, 6, 5),
+            data_devolucao_real=date(2026, 6, 6),
+            status="devolvido",
+        )
+
+        with patch("acervo.views.timezone.localdate", return_value=hoje):
+            mensal = self.client.get(reverse("painel"), {"granularidade": "mes"})
+            diaria = self.client.get(reverse("painel"), {"granularidade": "dia"})
+            mes_selecionado = self.client.get(
+                reverse("painel"),
+                {"granularidade": "mes", "mes": "2026-06"},
+            )
+            intervalo = self.client.get(
+                reverse("painel"),
+                {
+                    "granularidade": "dia",
+                    "data_inicio": "2026-06-02",
+                    "data_fim": "2026-06-10",
+                },
+            )
+
+        self.assertEqual(mensal.context["total_emprestimos_periodo"], 3)
+        self.assertEqual(mensal.context["total_emprestimos_abertos"], 2)
+        self.assertEqual(mensal.context["total_emprestimos_atrasados"], 1)
+        self.assertContains(mensal, "Livros mais emprestados")
+        self.assertContains(mensal, "Evolução de empréstimos")
+        self.assertContains(mensal, "Por situação")
+        self.assertContains(mensal, 'type="month"')
+        self.assertContains(mensal, 'name="data_inicio"')
+        self.assertContains(mensal, 'name="data_fim"')
+        self.assertContains(diaria, "granularidade=dia")
+        self.assertEqual(mensal.context["ranking_emprestimos"][0]["exemplar__livro__titulo"], "Animal Farm")
+        self.assertEqual(mensal.context["ranking_emprestimos"][0]["total"], 2)
+        mes_atual = next(item for item in mensal.context["serie_emprestimos"] if item["rotulo"] == "jun/26")
+        self.assertEqual(mes_atual["total"], 3)
+        self.assertEqual(sum(item["total"] for item in diaria.context["serie_emprestimos"]), 3)
+        self.assertEqual(mes_selecionado.context["periodo_label"], "Junho de 2026")
+        self.assertEqual(mes_selecionado.context["total_emprestimos_periodo"], 3)
+        self.assertEqual(len(mes_selecionado.context["serie_emprestimos"]), 1)
+        self.assertEqual(intervalo.context["periodo_label"], "02/06/2026 a 10/06/2026")
+        self.assertEqual(intervalo.context["total_emprestimos_periodo"], 2)
+        self.assertEqual(
+            sum(item["total"] for item in intervalo.context["serie_emprestimos"]),
+            2,
+        )
+        self.assertEqual(
+            {item["rotulo"]: item["total"] for item in mensal.context["distribuicao_emprestimos"]},
+            {"Em dia": 1, "Atrasados": 1, "Devolvidos": 1},
+        )
+
     def test_emprestimo_rejeita_membro_de_outra_organizacao(self):
         outra_organizacao = Organizacao.objects.create(nome="Biblioteca de outro membro")
         outro_membro = Membro.objects.create(

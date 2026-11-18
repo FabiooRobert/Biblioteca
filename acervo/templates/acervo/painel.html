@@ -11,8 +11,40 @@
             <h2>Movimento da biblioteca</h2>
             <p class="painel-descricao">Acompanhe o acervo e as operações em andamento.</p>
         </div>
-        <a class="botao painel-acao-principal" href="{% url 'novo_emprestimo' %}">Registrar empréstimo</a>
+        <div class="painel-cabecalho-acoes">
+            <div class="painel-controle-serie">
+                <span>{{ periodo_label }}</span>
+                <div class="controle-segmentado" role="group" aria-label="Granularidade da série">
+                    <a href="{{ link_granularidade_mes }}" aria-current="{% if granularidade == 'mes' %}true{% else %}false{% endif %}" class="{% if granularidade == 'mes' %}selecionado{% endif %}">Mês</a>
+                    <a href="{{ link_granularidade_dia }}" aria-current="{% if granularidade == 'dia' %}true{% else %}false{% endif %}" class="{% if granularidade == 'dia' %}selecionado{% endif %}">Dia</a>
+                </div>
+            </div>
+            <a class="botao painel-acao-principal" href="{% url 'novo_emprestimo' %}">Registrar empréstimo</a>
+        </div>
     </div>
+
+    <form class="filtro-periodo-metricas" method="get">
+        <input type="hidden" name="granularidade" value="{{ granularidade }}">
+        <div class="filtro-periodo-campo">
+            {{ filtro_periodo_form.mes.label_tag }}
+            {{ filtro_periodo_form.mes }}
+            {{ filtro_periodo_form.mes.errors }}
+        </div>
+        <span class="filtro-periodo-ou">ou</span>
+        <div class="filtro-periodo-campo">
+            {{ filtro_periodo_form.data_inicio.label_tag }}
+            {{ filtro_periodo_form.data_inicio }}
+            {{ filtro_periodo_form.data_inicio.errors }}
+        </div>
+        <div class="filtro-periodo-campo">
+            {{ filtro_periodo_form.data_fim.label_tag }}
+            {{ filtro_periodo_form.data_fim }}
+            {{ filtro_periodo_form.data_fim.errors }}
+        </div>
+        <button type="submit">Consultar</button>
+        <a class="filtro-periodo-limpar" href="?granularidade={{ granularidade }}">Limpar</a>
+        <div class="filtro-periodo-erros">{{ filtro_periodo_form.non_field_errors }}</div>
+    </form>
 
     <section class="painel-indicadores" aria-label="Indicadores da biblioteca">
         <a class="indicador" href="{% url 'lista_livros' %}">
@@ -45,6 +77,83 @@
             <strong>{{ total_reservas_ativas }}</strong>
             <span class="indicador-nota">Na fila de atendimento</span>
         </a>
+        <a class="indicador indicador-verde" href="{% url 'lista_emprestimos' %}">
+            <span class="indicador-rotulo">Empréstimos no período</span>
+            <strong>{{ total_emprestimos_periodo }}</strong>
+            <span class="indicador-nota">{{ periodo_label }}</span>
+        </a>
+    </section>
+
+    <section class="painel-graficos" aria-label="Métricas de empréstimos">
+        <article class="painel-bloco grafico-ranking">
+            <div class="painel-bloco-cabecalho">
+                <div>
+                    <p class="painel-sobretitulo">RANKING · {{ periodo_label }}</p>
+                    <h3>Livros mais emprestados</h3>
+                </div>
+            </div>
+            {% if ranking_emprestimos %}
+                <div class="ranking-lista">
+                    {% for item in ranking_emprestimos %}
+                        <div class="ranking-item">
+                            <div class="ranking-detalhe">
+                                <span>{{ item.exemplar__livro__titulo }}</span>
+                                <strong>{{ item.total }}</strong>
+                            </div>
+                            <div class="ranking-trilho" aria-hidden="true">
+                                <span style="width: {{ item.percentual }}%"></span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="painel-vazio">Sem empréstimos neste período.</p>
+            {% endif %}
+        </article>
+
+        <article class="painel-bloco grafico-distribuicao">
+            <div class="painel-bloco-cabecalho">
+                <div>
+                    <p class="painel-sobretitulo">AGORA</p>
+                    <h3>Por situação</h3>
+                </div>
+            </div>
+            <div class="distribuicao-lista">
+                {% for item in distribuicao_emprestimos %}
+                    <div class="distribuicao-item">
+                        <div class="distribuicao-detalhe">
+                            <span>{{ item.rotulo }}</span>
+                            <strong>{{ item.total }}</strong>
+                        </div>
+                        <div class="distribuicao-trilho" aria-hidden="true">
+                            <span class="{{ item.classe }}" style="width: {{ item.percentual }}%"></span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </article>
+
+        <article class="painel-bloco grafico-serie">
+            <div class="painel-bloco-cabecalho">
+                <div>
+                    <p class="painel-sobretitulo">SÉRIE TEMPORAL · {{ periodo_label }}</p>
+                    <h3>Evolução de empréstimos</h3>
+                </div>
+            </div>
+            <div class="serie-scroll">
+                <div class="serie-grafico serie-grafico-{{ granularidade }}" role="img" aria-label="Empréstimos por {{ granularidade }} nos {{ periodo_label }}">
+                    {% for item in serie_emprestimos %}
+                        <div class="serie-coluna" title="{{ item.descricao }}: {{ item.total }} empréstimos">
+                            <span class="serie-valor">{{ item.total }}</span>
+                            <div class="serie-trilho" aria-hidden="true">
+                                <span style="height: {{ item.percentual }}%"></span>
+                            </div>
+                            <span class="serie-rotulo">{{ item.rotulo }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </article>
     </section>
 
     <div class="painel-conteudo">

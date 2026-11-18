@@ -1,10 +1,12 @@
 import uuid
+from datetime import date, timedelta
 
 from django.contrib.auth import login
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.db.models.deletion import ProtectedError
+from django.db.models.functions import TruncMonth
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -14,6 +16,7 @@ from .forms import (
     DevolucaoForm,
     EmprestimoForm,
     ExemplarForm,
+    FiltroMetricasForm,
     LivroForm,
     MembroForm,
     OrganizacaoCriarForm,
@@ -135,14 +138,116 @@ def inicio(request):
 def painel(request):
     hoje = timezone.localdate()
     organizacao = request.organizacao
-    emprestimos_abertos = Emprestimo.objects.filter(
-        organizacao=organizacao,
-        data_devolucao_real__isnull=True,
-    )
+    filtro_periodo_form = FiltroMetricasForm(request.GET or None)
+    filtro_valido = filtro_periodo_form.is_bound and filtro_periodo_form.is_valid()
+    dados_filtro = filtro_periodo_form.cleaned_data if filtro_valido else {}
+    granularidade = dados_filtro.get("granularidade") or request.GET.get("granularidade", "mes")
+    if granularidade not in {"mes", "dia"}:
+        granularidade = "mes"
+
+    emprestimos_org = Emprestimo.objects.filter(organizacao=organizacao)
+    emprestimos_abertos = emprestimos_org.filter(data_devolucao_real__isnull=True)
     total_emprestimos_abertos = emprestimos_abertos.count()
     total_emprestimos_atrasados = emprestimos_abertos.filter(
         data_devolucao_prevista__lt=hoje
     ).count()
+
+    mes_selecionado = dados_filtro.get("mes")
+    data_inicio = dados_filtro.get("data_inicio")
+    data_fim = dados_filtro.get("data_fim")
+    nomes_meses = ("janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro")
+
+    if mes_selecionado:
+        inicio_periodo = mes_selecionado.replace(day=1)
+        proximo_mes = (inicio_periodo + timedelta(days=32)).replace(day=1)
+        fim_periodo = min(proximo_mes - timedelta(days=1), hoje)
+        periodo_label = f"{nomes_meses[inicio_periodo.month - 1].capitalize()} de {inicio_periodo.year}"
+    elif data_inicio and data_fim:
+        inicio_periodo = data_inicio
+        fim_periodo = data_fim
+        periodo_label = f"{inicio_periodo:%d/%m/%Y} a {fim_periodo:%d/%m/%Y}"
+    elif granularidade == "dia":
+        inicio_periodo = hoje - timedelta(days=29)
+        fim_periodo = hoje
+        periodo_label = "Últimos 30 dias"
+    else:
+        indice_mes_atual = hoje.year * 12 + hoje.month - 1
+        indice_mes_inicial = indice_mes_atual - 11
+        ano_inicial, mes_inicial_zero = divmod(indice_mes_inicial, 12)
+        inicio_periodo = date(ano_inicial, mes_inicial_zero + 1, 1)
+        fim_periodo = hoje
+        periodo_label = "Últimos 12 meses"
+
+    emprestimos_periodo = emprestimos_org.filter(
+        data_emprestimo__gte=inicio_periodo,
+        data_emprestimo__lte=fim_periodo,
+    )
+
+    if granularidade == "dia":
+        datas = [
+            inicio_periodo + timedelta(days=offset)
+            for offset in range((fim_periodo - inicio_periodo).days + 1)
+        ]
+        contagens = {
+            linha["data_emprestimo"]: linha["total"]
+            for linha in emprestimos_periodo.values("data_emprestimo").annotate(total=Count("pk"))
+        }
+        serie = [
+            {
+                "rotulo": data.strftime("%d/%m") if indice % 5 == 0 or indice == 29 else "",
+                "descricao": data.strftime("%d/%m/%Y"),
+                "total": contagens.get(data, 0),
+            }
+            for indice, data in enumerate(datas)
+        ]
+    else:
+        indice_mes_inicial = inicio_periodo.year * 12 + inicio_periodo.month - 1
+        indice_mes_final = fim_periodo.year * 12 + fim_periodo.month - 1
+        contagens = {
+            (linha["periodo"].year, linha["periodo"].month): linha["total"]
+            for linha in emprestimos_periodo.annotate(
+                periodo=TruncMonth("data_emprestimo")
+            ).values("periodo").annotate(total=Count("pk"))
+        }
+        serie = []
+        meses_abreviados = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
+        for indice in range(indice_mes_inicial, indice_mes_final + 1):
+            ano, mes_zero = divmod(indice, 12)
+            mes = mes_zero + 1
+            serie.append({
+                "rotulo": f"{meses_abreviados[mes - 1]}/{str(ano)[-2:]}",
+                "descricao": f"{nomes_meses[mes - 1].capitalize()} de {ano}",
+                "total": contagens.get((ano, mes), 0),
+            })
+
+    maior_serie = max((item["total"] for item in serie), default=0)
+    for item in serie:
+        item["percentual"] = round(item["total"] / maior_serie * 100) if maior_serie else 0
+
+    parametros_mes = request.GET.copy()
+    parametros_mes["granularidade"] = "mes"
+    parametros_dia = request.GET.copy()
+    parametros_dia["granularidade"] = "dia"
+
+    ranking = list(
+        emprestimos_periodo.values("exemplar__livro__titulo")
+        .annotate(total=Count("pk"))
+        .order_by("-total", "exemplar__livro__titulo")[:5]
+    )
+    maior_ranking = max((item["total"] for item in ranking), default=0)
+    for item in ranking:
+        item["percentual"] = round(item["total"] / maior_ranking * 100) if maior_ranking else 0
+
+    total_devolvidos = emprestimos_org.filter(data_devolucao_real__isnull=False).count()
+    total_em_dia = emprestimos_abertos.filter(data_devolucao_prevista__gte=hoje).count()
+    distribuicao = [
+        {"rotulo": "Em dia", "total": total_em_dia, "classe": "em-dia"},
+        {"rotulo": "Atrasados", "total": total_emprestimos_atrasados, "classe": "atrasados"},
+        {"rotulo": "Devolvidos", "total": total_devolvidos, "classe": "devolvidos"},
+    ]
+    total_situacoes = sum(item["total"] for item in distribuicao)
+    for item in distribuicao:
+        item["percentual"] = round(item["total"] / total_situacoes * 100) if total_situacoes else 0
 
     emprestimos_recentes = []
     registros_recentes = Emprestimo.objects.select_related(
@@ -171,6 +276,15 @@ def painel(request):
         "total_emprestimos_abertos": total_emprestimos_abertos,
         "total_emprestimos_atrasados": total_emprestimos_atrasados,
         "emprestimos_recentes": emprestimos_recentes,
+        "granularidade": granularidade,
+        "periodo_label": periodo_label,
+        "total_emprestimos_periodo": emprestimos_periodo.count(),
+        "serie_emprestimos": serie,
+        "ranking_emprestimos": ranking,
+        "distribuicao_emprestimos": distribuicao,
+        "filtro_periodo_form": filtro_periodo_form,
+        "link_granularidade_mes": f"?{parametros_mes.urlencode()}",
+        "link_granularidade_dia": f"?{parametros_dia.urlencode()}",
     })
 
 
