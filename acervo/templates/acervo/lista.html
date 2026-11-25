@@ -1,90 +1,197 @@
 {% extends "acervo/base.html" %}
 
-{% block title %}Acervo{% endblock %}
+{% block title %}{{ titulo }}{% endblock %}
 
 {% block conteudo %}
-<h2>Acervo de livros</h2>
+<h2>{{ titulo }}</h2>
 
-<form method="get" class="filtros">
-    <div>
-        <label for="pesquisa">Pesquisar por nome ou autor</label>
-        <input
-            type="text"
-            id="pesquisa"
-            name="pesquisa"
-            value="{{ pesquisa }}"
-            placeholder="Digite o nome/título ou autor"
-        >
-    </div>
+{% if titulo == "Acervo de livros" or titulo == "Livros" %}
+    <a class="botao" href="{% url 'novo_livro' %}">+ Novo livro</a>
+{% elif titulo == "Autores" %}
+    <a class="botao" href="{% url 'novo_autor' %}">+ Novo autor</a>
+{% elif titulo == "Exemplares" %}
+    <a class="botao" href="{% url 'novo_exemplar' %}">+ Novo exemplar</a>
+{% elif titulo == "Membros" %}
+    <a class="botao" href="{% url 'novo_membro' %}">+ Novo membro</a>
+{% elif titulo == "Empréstimos" %}
+    <a class="botao" href="{% url 'novo_emprestimo' %}">+ Novo empréstimo</a>
+{% elif titulo == "Reservas" %}
+    <a class="botao" href="{% url 'nova_reserva' %}">+ Nova reserva</a>
+{% endif %}
 
-    <div>
-        <label for="tipo">Tipo do acervo</label>
-        <select id="tipo" name="tipo">
+{% if titulo == "Acervo de livros" or titulo == "Livros" %}
+<form method="get" class="filtros-livros">
+    <label for="filtro-nome">Nome
+        <input id="filtro-nome" type="search" name="nome" value="{{ filtro_nome }}" placeholder="Título ou autor">
+    </label>
+    <label for="filtro-tipo">Tipo
+        <select id="filtro-tipo" name="tipo">
             <option value="">Todos os tipos</option>
-            {% for valor, nome in tipos %}
-                <option value="{{ valor }}" {% if tipo_selecionado == valor %}selected{% endif %}>
-                    {{ nome }}
-                </option>
+            {% for codigo, descricao in tipos %}
+                <option value="{{ codigo }}" {% if filtro_tipo == codigo %}selected{% endif %}>{{ descricao }}</option>
             {% endfor %}
         </select>
-    </div>
-
-    <div>
-        <label for="categoria">Categoria</label>
-        <select id="categoria" name="categoria">
+    </label>
+    <label for="filtro-categoria">Categoria
+        <select id="filtro-categoria" name="categoria">
             <option value="">Todas as categorias</option>
-            {% for valor, nome in categorias %}
-                <option value="{{ valor }}" {% if categoria_selecionada == valor %}selected{% endif %}>
-                    {{ valor }} – {{ nome }}
-                </option>
+            {% for codigo, descricao in categorias %}
+                <option value="{{ codigo }}" {% if filtro_categoria == codigo %}selected{% endif %}>{{ descricao }}</option>
             {% endfor %}
         </select>
-    </div>
-
-    <div class="acoes-filtro">
-        <button type="submit">Pesquisar</button>
-        <a class="botao" href="{% url 'lista' %}">Limpar filtros</a>
-    </div>
+    </label>
+    <button type="submit">Pesquisar</button>
+    <a href="{% url 'lista_livros' %}">Limpar</a>
 </form>
+{% endif %}
 
-{% if livros %}
+{% if itens %}
 <table>
     <thead>
         <tr>
-            <th>Título</th>
-            <th>Autor</th>
-            <th>Ano</th>
-            <th>Tipo</th>
-            <th>Categoria</th>
-            <th>Disponível</th>
-            {% if is_admin %}<th>Ações</th>{% endif %}
+            {% if titulo == "Acervo de livros" or titulo == "Livros" %}
+                <th>Título</th>
+                <th>Tipo</th>
+                <th>Autor</th>
+                <th>Ano</th>
+                <th>Categoria</th>
+                <th>ISBN</th>
+                <th>Ações</th>
+            {% elif titulo == "Autores" %}
+                <th>Nome</th>
+                <th>Sobrenome</th>
+                <th>Ações</th>
+            {% elif titulo == "Exemplares" %}
+                <th>Código</th>
+                <th>Livro</th>
+                <th>Status</th>
+                <th>Ações</th>
+            {% elif titulo == "Membros" %}
+                <th>Nome</th>
+                <th>CPF</th>
+                <th>Email</th>
+                <th>Ações</th>
+            {% elif titulo == "Empréstimos" %}
+                <th>Exemplar</th>
+                <th>Membro</th>
+                <th>Data de retirada</th>
+                <th>Entrega prevista</th>
+                <th>Data de entrega</th>
+                <th>Status</th>
+                <th>Multa</th>
+                <th>Ações</th>
+            {% elif titulo == "Reservas" %}
+                <th>Livro</th>
+                <th>Membro</th>
+                <th>Data reserva</th>
+                <th>Posição</th>
+                <th>Status</th>
+                <th>Ações</th>
+            {% endif %}
         </tr>
     </thead>
     <tbody>
-        {% for livro in livros %}
-        <tr>
-            <td>{{ livro.titulo }}</td>
-            <td>{{ livro.autor }}</td>
-            <td>{{ livro.ano }}</td>
-            <td>{{ livro.get_tipo_display }}</td>
-            <td>{{ livro.get_categoria_display }}</td>
-            <td>{% if livro.disponivel %}Sim{% else %}Não{% endif %}</td>
-            {% if is_admin %}
-                <td>
-                    <a href="{% url 'editar' livro.pk %}">Editar</a>
-                    <form method="post" action="{% url 'excluir' livro.pk %}" style="display:inline;">
-                        {% csrf_token %}
-                        <button type="submit" onclick="return confirm('Deseja excluir este livro?')">Excluir</button>
-                    </form>
-                </td>
+        {% for item in itens %}
+            {% if titulo == "Acervo de livros" or titulo == "Livros" %}
+                <tr>
+                    <td>{{ item.titulo }}</td>
+                    <td>{{ item.get_tipo_display }}</td>
+                    <td>{{ item.autor }}</td>
+                    <td>{{ item.ano }}</td>
+                    <td>{{ item.get_categoria_display }}</td>
+                    <td>{{ item.isbn|default:"-" }}</td>
+                    <td>
+                        <a href="{% url 'editar_livro' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_livro' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este livro?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Autores" %}
+                <tr>
+                    <td>{{ item.nome }}</td>
+                    <td>{{ item.sobrenome }}</td>
+                    <td>
+                        <a href="{% url 'editar_autor' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_autor' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este autor?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Exemplares" %}
+                <tr>
+                    <td>{{ item.codigo }}</td>
+                    <td>{{ item.livro }}</td>
+                    <td>{{ item.get_status_display }}</td>
+                    <td>
+                        <a href="{% url 'editar_exemplar' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_exemplar' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este exemplar?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Membros" %}
+                <tr>
+                    <td>{{ item.nome }} {{ item.sobrenome }}</td>
+                    <td>{{ item.cpf }}</td>
+                    <td>{{ item.email }}</td>
+                    <td>
+                        <a href="{% url 'editar_membro' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_membro' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este membro?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Empréstimos" %}
+                <tr>
+                    <td>{{ item.exemplar }}</td>
+                    <td>{{ item.membro }}</td>
+                    <td>{{ item.data_emprestimo }}</td>
+                    <td>{{ item.data_devolucao_prevista }}</td>
+                    <td>{{ item.data_devolucao_real|default:"-" }}</td>
+                    <td>{{ item.get_status_display }}</td>
+                    <td>R$ {{ item.calcular_multa }}</td>
+                    <td>
+                        {% if item.status != "devolvido" %}
+                            <form method="post" action="{% url 'registrar_devolucao' item.pk %}">
+                                {% csrf_token %}
+                                <label>Data de entrega
+                                    <input type="date" name="data_devolucao_real" required>
+                                </label>
+                                <button type="submit">Registrar devolução</button>
+                            </form>
+                        {% endif %}
+                        <a href="{% url 'editar_emprestimo' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_emprestimo' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir este empréstimo?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+            {% elif titulo == "Reservas" %}
+                <tr>
+                    <td>{{ item.livro }}</td>
+                    <td>{{ item.membro }}</td>
+                    <td>{{ item.data_reserva }}</td>
+                    <td>{{ item.posicao_na_fila }}</td>
+                    <td>{{ item.get_status_display }}</td>
+                    <td>
+                        <a href="{% url 'editar_reserva' item.pk %}">Editar</a>
+                        <form method="post" action="{% url 'excluir_reserva' item.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" onclick="return confirm('Deseja excluir esta reserva?')">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
             {% endif %}
-        </tr>
         {% endfor %}
     </tbody>
 </table>
 {% else %}
-<p>Nenhum item encontrado com os filtros informados.</p>
+<p>Nenhum registro encontrado.</p>
 {% endif %}
-
-{% if is_admin %}<a class="botao" href="{% url 'novo' %}">+ Novo livro</a>{% endif %}
 {% endblock %}

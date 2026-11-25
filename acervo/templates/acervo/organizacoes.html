@@ -1,0 +1,65 @@
+{% extends "acervo/base.html" %}
+
+{% block title %}Organizações | Biblioteca / Acervo{% endblock %}
+{% block conteudo %}
+<section class="pagina-organizacoes">
+    <div class="organizacoes-cabecalho">
+        <div>
+            <p class="painel-sobretitulo">ACESSO E EQUIPE</p>
+            <h2>Organizações</h2>
+            <p>Crie uma biblioteca ou entre em outra usando um convite.</p>
+        </div>
+    </div>
+
+    <section class="lista-organizacoes">
+        <h3>Suas bibliotecas</h3>
+        {% for vinculo in request.organizacoes %}
+            <article class="linha-organizacao">
+                <div class="organizacao-identificacao">
+                    <strong>{{ vinculo.organizacao.nome }}</strong>
+                    {% if vinculo.organizacao_id == request.organizacao.id %}
+                        <span class="organizacao-etiqueta">Ativa</span>
+                    {% endif %}
+                    <span class="organizacao-papel">{{ vinculo.get_papel_display }}</span>
+                </div>
+                {% if vinculo.papel == "admin" %}
+                    <div class="organizacao-convite">
+                        <span>Código de convite <code>{{ vinculo.organizacao.codigo_convite }}</code></span>
+                        <form method="post" action="{% url 'organizacoes' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="acao" value="renovar_convite">
+                            {% if vinculo.organizacao_id == request.organizacao.id %}
+                                <button type="submit" class="botao-secundario">Renovar código</button>
+                            {% endif %}
+                        </form>
+                    </div>
+                {% endif %}
+            </article>
+        {% empty %}
+            <p class="organizacoes-vazio">Você ainda não participa de uma biblioteca.</p>
+        {% endfor %}
+    </section>
+
+    <div class="organizacoes-acoes">
+        <section class="organizacao-form-bloco">
+            <h3>Criar biblioteca</h3>
+            <form method="post" action="{% url 'organizacoes' %}">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="criar">
+                {{ form_criar.as_p }}
+                <button type="submit">Criar organização</button>
+            </form>
+        </section>
+
+        <section class="organizacao-form-bloco">
+            <h3>Entrar com convite</h3>
+            <form method="post" action="{% url 'organizacoes' %}">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="entrar">
+                {{ form_entrar.as_p }}
+                <button type="submit">Entrar na organização</button>
+            </form>
+        </section>
+    </div>
+</section>
+{% endblock %}
